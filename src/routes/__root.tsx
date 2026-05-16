@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { Toaster } from "sonner";
 
 function NotFoundComponent() {
   return (
@@ -73,13 +74,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { name: "description", content: "Possac Queue Flow is a multi-tenant SaaS web app for virtual queue management." },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:description", content: "Possac Queue Flow is a multi-tenant SaaS web app for virtual queue management." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Lovable App" },
+      { name: "twitter:description", content: "Possac Queue Flow is a multi-tenant SaaS web app for virtual queue management." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbbc282f-7461-4d77-8a5c-deb18742adb3/id-preview-55f62bf1--b6c0feb9-1a40-46b9-9a0a-4a74551338c7.lovable.app-1778785000223.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bbbc282f-7461-4d77-8a5c-deb18742adb3/id-preview-55f62bf1--b6c0feb9-1a40-46b9-9a0a-4a74551338c7.lovable.app-1778785000223.png" },
     ],
     links: [
       {
@@ -114,6 +119,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <Toaster richColors position="top-center" />
     </QueryClientProvider>
   );
 }
