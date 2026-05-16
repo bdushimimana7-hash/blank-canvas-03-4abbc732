@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SECTORS } from "@/lib/sectors";
+import { fillTemplate } from "@/lib/format";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { inviteStaff, removeStaff } from "@/lib/admin.functions";
@@ -139,18 +140,12 @@ function SettingsPage() {
             </div>
           </div>
           <div className="mt-5 space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="tpla">1. When customer joins</Label>
-              <Textarea id="tpla" rows={3} value={tplAdd} onChange={(e) => setTplAdd(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="tplh">2. Heads-up (auto-sent at position 3)</Label>
-              <Textarea id="tplh" rows={3} value={tplHeadsup} onChange={(e) => setTplHeadsup(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="tplc">3. When customer is called</Label>
-              <Textarea id="tplc" rows={3} value={tplCall} onChange={(e) => setTplCall(e.target.value)} />
-            </div>
+            <TemplateField id="tpla" label="1. When customer joins"
+              value={tplAdd} onChange={setTplAdd} business={name} />
+            <TemplateField id="tplh" label="2. Heads-up (auto-sent at position 3)"
+              value={tplHeadsup} onChange={setTplHeadsup} business={name} />
+            <TemplateField id="tplc" label="3. When customer is called"
+              value={tplCall} onChange={setTplCall} business={name} />
           </div>
         </section>
 
@@ -204,6 +199,24 @@ function SettingsPage() {
           </form>
         </section>
       </main>
+    </div>
+  );
+}
+
+function TemplateField({ id, label, value, onChange, business }: {
+  id: string; label: string; value: string; onChange: (v: string) => void; business: string;
+}) {
+  const preview = fillTemplate(value, {
+    name: "Jean", position: 6, wait: 45, business: business || "your business",
+  });
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Textarea id={id} rows={3} value={value} onChange={(e) => onChange(e.target.value)} />
+      <div className="rounded-md border bg-muted/30 px-3 py-2">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Preview</div>
+        <div className="text-sm mt-1 whitespace-pre-wrap">{preview}</div>
+      </div>
     </div>
   );
 }
