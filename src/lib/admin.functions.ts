@@ -103,6 +103,17 @@ export const inviteStaff = createServerFn({ method: "POST" })
       user_id: created.user.id,
       role: "staff",
     });
+
+    // Best-effort: email a reset/login link so they can set their own password.
+    try {
+      await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email: data.email,
+      });
+    } catch (e) {
+      console.error("Could not send invite email", e);
+    }
+
     return { success: true, user_id: created.user.id };
   });
 
@@ -160,4 +171,51 @@ export const setBusinessActive = createServerFn({ method: "POST" })
       .eq("id", data.business_id);
     if (error) throw new Error(error.message);
     return { success: true };
+  });
+
+export const listBusinessesAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: superRow } = await context.supabase
+      .from("user_roles").select("role")
+      .eq("user_id", context.userId).eq("role", "superadmin").maybeSingle();
+    if (!superRow) throw new Error("Forbidden");
+
+    const { data: biz } = await supabaseAdmin
+      .from("businesses")
+      .select("id, name, sector, active, created_at, owner_id")
+      .order("created_at", { ascending: false });
+
+    // Fetch all auth users in pages to map owner_id -> email
+    const emailById = new Map<string, string>();
+    let page = 1;
+    while (true) {
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+      if (!list?.users.length) break;
+      for (const u of list.users) {
+        if (u.email) emailById.set(u.id, u.email);
+      }
+      if (list.users.length < 200) break;
+      page += 1;
+      if (page > 25) break;
+    }
+
+    const rows = [] as Array<{
+      id: string; name: string; sector: string; active: boolean;
+      created_at: string; owner_email: string | null; total_served: number;
+    }>;
+    for (const b of biz ?? []) {
+      const { count } = await supabaseAdmin
+        .from("queue_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", b.id)
+        .eq("status", "served");
+      rows.push({
+        id: b.id, name: b.name, sector: b.sector, active: b.active,
+        created_at: b.created_at,
+        owner_email: b.owner_id ? (emailById.get(b.owner_id) ?? null) : null,
+        total_served: count ?? 0,
+      });
+    }
+    return { businesses: rows };
   });

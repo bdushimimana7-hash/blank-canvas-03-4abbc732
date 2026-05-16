@@ -21,6 +21,9 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [sendingReset, setSendingReset] = useState(false);
   const seedFn = useServerFn(ensureSeedSuperadmin);
 
   useEffect(() => {
@@ -37,9 +40,40 @@ function LoginPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) { setSubmitting(false); toast.error(error.message); return; }
+    // Check business active status (owner/staff only)
+    if (data.user) {
+      const { data: sp } = await supabase
+        .from("staff_profiles")
+        .select("businesses(active)")
+        .eq("user_id", data.user.id)
+        .limit(1)
+        .maybeSingle();
+      const biz = sp?.businesses as { active?: boolean } | null;
+      if (biz && biz.active === false) {
+        await supabase.auth.signOut();
+        setSubmitting(false);
+        toast.error("Your account is suspended. Please contact support.");
+        return;
+      }
+    }
     setSubmitting(false);
+  };
+
+  const onForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSendingReset(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: window.location.origin + "/reset-password",
+    });
+    setSendingReset(false);
     if (error) toast.error(error.message);
+    else {
+      toast.success("Password reset link sent. Check your email.");
+      setShowForgot(false);
+      setForgotEmail("");
+    }
   };
 
   return (
@@ -60,7 +94,13 @@ function LoginPage() {
                 value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button type="button" onClick={() => { setForgotEmail(email); setShowForgot(true); }}
+                  className="text-xs text-primary font-medium hover:underline">
+                  Forgot password?
+                </button>
+              </div>
               <Input id="password" type="password" required autoComplete="current-password"
                 value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
@@ -68,6 +108,21 @@ function LoginPage() {
               {submitting ? "Signing in…" : "Sign in"}
             </Button>
           </form>
+          {showForgot && (
+            <form onSubmit={onForgot} className="mt-6 pt-6 border-t space-y-3">
+              <Label htmlFor="forgot">Reset your password</Label>
+              <Input id="forgot" type="email" required placeholder="you@example.com"
+                value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} />
+              <div className="flex gap-2">
+                <Button type="submit" disabled={sendingReset} className="flex-1" variant="secondary">
+                  {sendingReset ? "Sending…" : "Send reset link"}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setShowForgot(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
         <p className="text-sm text-center text-muted-foreground mt-6">
           New to Possac?{" "}

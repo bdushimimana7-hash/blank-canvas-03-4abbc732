@@ -71,22 +71,31 @@ function LiveQueue() {
     if (!q) return;
     const { data: waitingList } = await supabase
       .from("queue_entries")
-      .select("id, customer_name, customer_phone, position, headsup_sent, wait_minutes")
+      .select("id, customer_name, customer_phone, headsup_sent, wait_minutes")
       .eq("queue_id", q.id)
       .eq("status", "waiting")
       .order("position");
     if (!waitingList || waitingList.length < 3) return;
     const third = waitingList[2];
     if (third.headsup_sent) return;
+    // Atomic claim: only the first call that flips false -> true gets to send.
+    const { data: claimed } = await supabase
+      .from("queue_entries")
+      .update({ headsup_sent: true })
+      .eq("id", third.id)
+      .eq("headsup_sent", false)
+      .select("id");
+    if (!claimed || claimed.length === 0) return;
     const { data: biz } = await supabase
       .from("businesses").select("sms_template_headsup").eq("id", businessId).single();
     if (!biz?.sms_template_headsup) return;
     const message = fillTemplate(biz.sms_template_headsup, {
       name: third.customer_name, position: 3, wait: third.wait_minutes ?? 0, business: businessName ?? "",
     });
-    const r = await sendSmsFn({ data: { phone: third.customer_phone, message } });
-    if (r.success) {
-      await supabase.from("queue_entries").update({ headsup_sent: true }).eq("id", third.id);
+    const r = await sendSmsFn({ data: { phone: third.customer_phone, message } }).catch(() => ({ success: false }));
+    if (!r.success) {
+      // Revert the claim so a retry can fire later.
+      await supabase.from("queue_entries").update({ headsup_sent: false }).eq("id", third.id);
     }
   };
 
@@ -94,16 +103,19 @@ function LiveQueue() {
     const { error } = await supabase.from("queue_entries")
       .update({ status: "called", called_at: new Date().toISOString() })
       .eq("id", e.id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error("Could not update: " + error.message); return; }
     const { data: biz } = await supabase
       .from("businesses").select("sms_template_call").eq("id", businessId!).single();
     if (biz?.sms_template_call) {
       const message = fillTemplate(biz.sms_template_call, {
         name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "",
       });
-      const r = await sendSmsFn({ data: { phone: e.customer_phone, message } });
-      if (!r.success) toast.warning("Called, SMS failed");
-      else toast.success(`Called ${e.customer_name}`);
+      toast.success(`Called ${e.customer_name}`);
+      sendSmsFn({ data: { phone: e.customer_phone, message } })
+        .then((r) => { if (!r.success) toast.warning("Called. SMS failed — check Pindo settings."); })
+        .catch(() => toast.warning("Called. SMS failed — check Pindo settings."));
+    } else {
+      toast.success(`Called ${e.customer_name}`);
     }
     triggerHeadsupIfNeeded();
   };
@@ -113,7 +125,8 @@ function LiveQueue() {
       ? { status, served_at: new Date().toISOString() }
       : { status };
     const { error } = await supabase.from("queue_entries").update(patch).eq("id", e.id);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error("Could not update: " + error.message); return; }
+    toast.success(status === "served" ? "Marked served" : "Marked no-show");
     triggerHeadsupIfNeeded();
   };
 
@@ -154,7 +167,7 @@ function LiveQueue() {
       <main className="max-w-md mx-auto px-4 py-4 pb-28">
         {entries.length === 0 ? (
           <div className="border border-dashed rounded-lg p-8 text-center text-sm text-muted-foreground">
-            No one in the queue yet.
+            No one in the queue yet. Add your first customer.
           </div>
         ) : (
           <ul className="space-y-2">

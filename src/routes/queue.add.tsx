@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/useSession";
 import { sectorCopy } from "@/lib/sectors";
-import { fillTemplate } from "@/lib/format";
+import { fillTemplate, formatRwandaPhone } from "@/lib/format";
 import { sendSms } from "@/lib/sms.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft } from "lucide-react";
@@ -39,9 +39,9 @@ function AddToQueue() {
       toast.error("No business assigned to your account");
       return;
     }
-    const cleanPhone = phone.replace(/\s+/g, "");
-    if (!/^0?7\d{8}$/.test(cleanPhone) && !/^\+?2507\d{8}$/.test(cleanPhone)) {
-      toast.error("Enter a valid Rwanda phone (07XXXXXXXX)");
+    const formatted = formatRwandaPhone(phone);
+    if (!formatted) {
+      toast.error("Please enter a valid Rwandan phone number");
       return;
     }
     setSubmitting(true);
@@ -76,7 +76,7 @@ function AddToQueue() {
       queue_id: queueId,
       business_id: businessId,
       customer_name: name.trim(),
-      customer_phone: cleanPhone,
+      customer_phone: formatted,
       position,
       status: "waiting",
       added_by: user?.id ?? null,
@@ -84,17 +84,25 @@ function AddToQueue() {
     });
     if (insErr) { setSubmitting(false); toast.error(insErr.message); return; }
 
-    // Fire SMS
-    if (biz?.sms_template_add) {
-      const message = fillTemplate(biz.sms_template_add, { name: name.trim(), position, wait, business: businessName ?? "" });
-      const result = await sendSmsFn({ data: { phone: cleanPhone, message } });
-      if (!result.success) toast.warning("Added, but SMS failed: " + (result.error ?? ""));
-      else toast.success(`Added. SMS sent to ${cleanPhone}`);
-    } else {
-      toast.success("Added to queue");
-    }
-
+    toast.success("Added to queue");
     setName(""); setPhone(""); setSubmitting(false);
+    navigate({ to: "/queue" });
+
+    // Fire SMS in the background — never block the customer being added
+    if (biz?.sms_template_add) {
+      const message = fillTemplate(biz.sms_template_add, {
+        name: name.trim(), position, wait, business: businessName ?? "",
+      });
+      sendSmsFn({ data: { phone: formatted, message } })
+        .then((result) => {
+          if (!result.success) {
+            toast.warning("Added to queue. SMS failed — check Pindo settings.");
+          }
+        })
+        .catch(() => {
+          toast.warning("Added to queue. SMS failed — check Pindo settings.");
+        });
+    }
   };
 
   return (
