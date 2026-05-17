@@ -211,7 +211,6 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
-      user_business_ids: { Args: { _user_id: string }; Returns: string[] }
       user_can_access_business: {
         Args: { _business_id: string; _user_id: string }
         Returns: boolean
