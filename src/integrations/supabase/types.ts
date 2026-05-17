@@ -14,215 +14,16 @@ export type Database = {
   }
   public: {
     Tables: {
-      businesses: {
-        Row: {
-          active: boolean
-          created_at: string
-          id: string
-          name: string
-          owner_id: string | null
-          sector: string
-          sms_template_add: string
-          sms_template_call: string
-          sms_template_headsup: string
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          id?: string
-          name: string
-          owner_id?: string | null
-          sector?: string
-          sms_template_add?: string
-          sms_template_call?: string
-          sms_template_headsup?: string
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          id?: string
-          name?: string
-          owner_id?: string | null
-          sector?: string
-          sms_template_add?: string
-          sms_template_call?: string
-          sms_template_headsup?: string
-        }
-        Relationships: []
-      }
-      queue_entries: {
-        Row: {
-          added_at: string
-          added_by: string | null
-          business_id: string
-          called_at: string | null
-          customer_name: string
-          customer_phone: string
-          headsup_sent: boolean
-          id: string
-          position: number
-          queue_id: string
-          served_at: string | null
-          status: string
-          wait_minutes: number | null
-        }
-        Insert: {
-          added_at?: string
-          added_by?: string | null
-          business_id: string
-          called_at?: string | null
-          customer_name: string
-          customer_phone: string
-          headsup_sent?: boolean
-          id?: string
-          position: number
-          queue_id: string
-          served_at?: string | null
-          status?: string
-          wait_minutes?: number | null
-        }
-        Update: {
-          added_at?: string
-          added_by?: string | null
-          business_id?: string
-          called_at?: string | null
-          customer_name?: string
-          customer_phone?: string
-          headsup_sent?: boolean
-          id?: string
-          position?: number
-          queue_id?: string
-          served_at?: string | null
-          status?: string
-          wait_minutes?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "queue_entries_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "queue_entries_queue_id_fkey"
-            columns: ["queue_id"]
-            isOneToOne: false
-            referencedRelation: "queues"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      queues: {
-        Row: {
-          business_id: string
-          created_at: string
-          date: string
-          id: string
-        }
-        Insert: {
-          business_id: string
-          created_at?: string
-          date?: string
-          id?: string
-        }
-        Update: {
-          business_id?: string
-          created_at?: string
-          date?: string
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "queues_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      staff_profiles: {
-        Row: {
-          business_id: string
-          created_at: string
-          full_name: string
-          id: string
-          role: string
-          user_id: string
-        }
-        Insert: {
-          business_id: string
-          created_at?: string
-          full_name?: string
-          id?: string
-          role?: string
-          user_id: string
-        }
-        Update: {
-          business_id?: string
-          created_at?: string
-          full_name?: string
-          id?: string
-          role?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "staff_profiles_business_id_fkey"
-            columns: ["business_id"]
-            isOneToOne: false
-            referencedRelation: "businesses"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_roles: {
-        Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_superadmin: { Args: { _user_id: string }; Returns: boolean }
-      user_business_ids: { Args: { _user_id: string }; Returns: string[] }
-      user_can_access_business: {
-        Args: { _business_id: string; _user_id: string }
-        Returns: boolean
-      }
-      user_owns_business: {
-        Args: { _business_id: string; _user_id: string }
-        Returns: boolean
-      }
+      [_ in never]: never
     }
     Enums: {
-      app_role: "superadmin" | "owner" | "staff"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -349,8 +150,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["superadmin", "owner", "staff"],
-    },
+    Enums: {},
   },
 } as const
