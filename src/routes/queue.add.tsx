@@ -25,6 +25,7 @@ function AddToQueue() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const sendSmsFn = useServerFn(sendSms);
 
   useEffect(() => {
@@ -35,73 +36,94 @@ function AddToQueue() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+    if (loading) {
+      setFormError("Still loading your session — please wait a moment.");
+      return;
+    }
+    if (!user) {
+      setFormError("You are not signed in. Please log in again.");
+      return;
+    }
     if (!businessId) {
-      toast.error("No business assigned to your account");
+      setFormError("No business is linked to your account. Contact your administrator.");
+      console.error("[queue.add] Missing businessId on session", { userId: user?.id });
       return;
     }
     const formatted = formatRwandaPhone(phone);
     if (!formatted) {
-      toast.error("Please enter a valid Rwandan phone number");
+      setFormError("Please enter a valid Rwandan phone number (07XXXXXXXX).");
       return;
     }
     setSubmitting(true);
 
-    // Get or create today's queue
-    const today = new Date().toISOString().slice(0, 10);
-    let queueId: string | null = null;
-    const { data: existing } = await supabase
-      .from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
-    if (existing) queueId = existing.id;
-    else {
-      const { data: created, error } = await supabase
-        .from("queues").insert({ business_id: businessId, date: today }).select("id").single();
-      if (error || !created) { setSubmitting(false); toast.error("Could not create queue"); return; }
-      queueId = created.id;
-    }
+    try {
+      // Get or create today's queue
+      const today = new Date().toISOString().slice(0, 10);
+      let queueId: string | null = null;
+      const { data: existing, error: qSelErr } = await supabase
+        .from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
+      if (qSelErr) throw new Error("Could not load today's queue: " + qSelErr.message);
+      if (existing) queueId = existing.id;
+      else {
+        const { data: created, error: qInsErr } = await supabase
+          .from("queues").insert({ business_id: businessId, date: today }).select("id").single();
+        if (qInsErr || !created) throw new Error("Could not create today's queue: " + (qInsErr?.message ?? "unknown"));
+        queueId = created.id;
+      }
 
-    // Compute position from waiting count
-    const { count: waitingCount } = await supabase
-      .from("queue_entries")
-      .select("id", { count: "exact", head: true })
-      .eq("queue_id", queueId)
-      .eq("status", "waiting");
-    const position = (waitingCount ?? 0) + 1;
-    const wait = position * AVG_SERVICE_MIN;
+      // Compute position from waiting count
+      const { count: waitingCount } = await supabase
+        .from("queue_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("queue_id", queueId)
+        .eq("status", "waiting");
+      const position = (waitingCount ?? 0) + 1;
+      const wait = position * AVG_SERVICE_MIN;
 
-    // Get business sms template
-    const { data: biz } = await supabase
-      .from("businesses").select("sms_template_add").eq("id", businessId).single();
+      // Get business sms template (non-blocking — failure shouldn't prevent insert)
+      const { data: biz } = await supabase
+        .from("businesses").select("sms_template_add").eq("id", businessId).maybeSingle();
 
-    const { error: insErr } = await supabase.from("queue_entries").insert({
-      queue_id: queueId,
-      business_id: businessId,
-      customer_name: name.trim(),
-      customer_phone: formatted,
-      position,
-      status: "waiting",
-      added_by: user?.id ?? null,
-      wait_minutes: wait,
-    });
-    if (insErr) { setSubmitting(false); toast.error(insErr.message); return; }
-
-    toast.success("Added to queue");
-    setName(""); setPhone(""); setSubmitting(false);
-    navigate({ to: "/queue" });
-
-    // Fire SMS in the background — never block the customer being added
-    if (biz?.sms_template_add) {
-      const message = fillTemplate(biz.sms_template_add, {
-        name: name.trim(), position, wait, business: businessName ?? "",
+      const { error: insErr } = await supabase.from("queue_entries").insert({
+        queue_id: queueId,
+        business_id: businessId,
+        customer_name: name.trim(),
+        customer_phone: formatted,
+        position,
+        status: "waiting",
+        added_by: user.id,
+        wait_minutes: wait,
       });
-      sendSmsFn({ data: { phone: formatted, message } })
-        .then((result) => {
-          if (!result.success) {
-            toast.warning("Added to queue. SMS failed — check Pindo settings.");
-          }
-        })
-        .catch(() => {
-          toast.warning("Added to queue. SMS failed — check Pindo settings.");
+      if (insErr) throw new Error("Could not add to queue: " + insErr.message);
+
+      toast.success("Added to queue");
+      const savedName = name.trim();
+      setName(""); setPhone(""); setSubmitting(false);
+      navigate({ to: "/queue" });
+
+      // Fire SMS in the background — never block the customer being added
+      if (biz?.sms_template_add) {
+        const message = fillTemplate(biz.sms_template_add, {
+          name: savedName, position, wait, business: businessName ?? "",
         });
+        sendSmsFn({ data: { phone: formatted, message } })
+          .then((result) => {
+            if (!result.success) {
+              toast.warning("Added to queue. SMS failed — check Pindo settings.");
+            }
+          })
+          .catch((err) => {
+            console.error("[queue.add] SMS error", err);
+            toast.warning("Added to queue. SMS failed — check Pindo settings.");
+          });
+      }
+    } catch (err) {
+      console.error("[queue.add] Insert failed", err);
+      const msg = err instanceof Error ? err.message : "Unexpected error adding to queue.";
+      setFormError(msg);
+      toast.error(msg);
+      setSubmitting(false);
     }
   };
 
@@ -122,6 +144,11 @@ function AddToQueue() {
           New {copy.customer.toLowerCase()} — they'll get an SMS confirmation.
         </p>
         <form onSubmit={onSubmit} className="mt-8 space-y-5">
+          {formError && (
+            <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {formError}
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="name">{copy.customer} name</Label>
             <Input id="name" required value={name} onChange={(e) => setName(e.target.value)}
