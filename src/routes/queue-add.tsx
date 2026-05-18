@@ -12,7 +12,7 @@ import { sendSms } from "@/lib/sms.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft } from "lucide-react";
 
-export const Route = createFileRoute("/queue/add")({
+export const Route = createFileRoute("/queue-add")({
   component: AddToQueue,
   head: () => ({ meta: [{ title: "Add to queue — Possac" }] }),
 });
