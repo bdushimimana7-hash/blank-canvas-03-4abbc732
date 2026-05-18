@@ -50,13 +50,21 @@ export const signupOwner = createServerFn({ method: "POST" })
       throw new Error(bizErr?.message || "Could not create business");
     }
 
-    // The handle_new_business trigger inserts staff_profile + owner role,
-    // but full_name is empty — patch it.
-    await supabaseAdmin
-      .from("staff_profiles")
-      .update({ full_name: data.full_name })
-      .eq("user_id", userId)
-      .eq("business_id", biz.id);
+   await supabaseAdmin
+  .from("staff_profiles")
+  .upsert({
+    user_id: userId,
+    business_id: biz.id,
+    full_name: data.full_name,
+    role: "owner",
+  }, { onConflict: "user_id,business_id" });
+
+await supabaseAdmin
+  .from("user_roles")
+  .upsert({
+    user_id: userId,
+    role: "owner",
+  }, { onConflict: "user_id,role" });
 
     return { success: true };
   });
