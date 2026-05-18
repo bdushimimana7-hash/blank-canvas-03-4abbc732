@@ -61,15 +61,39 @@ function AddToQueue() {
       // Get or create today's queue
       const today = new Date().toISOString().slice(0, 10);
       let queueId: string | null = null;
-      const { data: existing, error: qSelErr } = await supabase
-        .from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
+      const { data: existingQueues, error: qSelErr } = await supabase
+        .from("queues")
+        .select("id")
+        .eq("business_id", businessId)
+        .eq("date", today)
+        .order("created_at", { ascending: true })
+        .limit(1);
       if (qSelErr) throw new Error("Could not load today's queue: " + qSelErr.message);
-      if (existing) queueId = existing.id;
-      else {
+      if (existingQueues?.[0]) {
+        queueId = existingQueues[0].id;
+      } else {
         const { data: created, error: qInsErr } = await supabase
-          .from("queues").insert({ business_id: businessId, date: today }).select("id").single();
-        if (qInsErr || !created) throw new Error("Could not create today's queue: " + (qInsErr?.message ?? "unknown"));
-        queueId = created.id;
+          .from("queues")
+          .insert({ business_id: businessId, date: today })
+          .select("id")
+          .single();
+
+        if (created?.id) {
+          queueId = created.id;
+        } else {
+          const { data: fallbackQueues, error: fallbackErr } = await supabase
+            .from("queues")
+            .select("id")
+            .eq("business_id", businessId)
+            .eq("date", today)
+            .order("created_at", { ascending: true })
+            .limit(1);
+          if (fallbackErr) throw new Error("Could not create today's queue: " + fallbackErr.message);
+          if (!fallbackQueues?.[0]?.id) {
+            throw new Error("Could not create today's queue: " + (qInsErr?.message ?? "unknown"));
+          }
+          queueId = fallbackQueues[0].id;
+        }
       }
 
       // Compute position from waiting count
@@ -85,7 +109,7 @@ function AddToQueue() {
       const { data: biz } = await supabase
         .from("businesses").select("sms_template_add").eq("id", businessId).maybeSingle();
 
-      const { error: insErr } = await supabase.from("queue_entries").insert({
+      const { data: insertedEntry, error: insErr } = await supabase.from("queue_entries").insert({
         queue_id: queueId,
         business_id: businessId,
         customer_name: name.trim(),
@@ -94,8 +118,9 @@ function AddToQueue() {
         status: "waiting",
         added_by: user.id,
         wait_minutes: wait,
-      });
+      }).select("id").single();
       if (insErr) throw new Error("Could not add to queue: " + insErr.message);
+      if (!insertedEntry?.id) throw new Error("Could not add to queue: no record was created.");
 
       toast.success("Added to queue");
       const savedName = name.trim();
