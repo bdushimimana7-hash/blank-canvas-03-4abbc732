@@ -75,7 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/queue': typeof QueueRouteWithChildren
+  '/queue': typeof QueueRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
@@ -87,7 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/queue': typeof QueueRouteWithChildren
+  '/queue': typeof QueueRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
@@ -100,7 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/queue': typeof QueueRouteWithChildren
+  '/queue': typeof QueueRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
@@ -227,10 +227,10 @@ declare module '@tanstack/react-router' {
     }
     '/queue/add': {
       id: '/queue/add'
-      path: '/add'
+      path: '/queue/add'
       fullPath: '/queue/add'
       preLoaderRoute: typeof QueueAddRouteImport
-      parentRoute: typeof QueueRoute
+      parentRoute: typeof rootRouteImport
     }
   }
 }
