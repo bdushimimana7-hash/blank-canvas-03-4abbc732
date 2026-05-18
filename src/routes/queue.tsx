@@ -214,7 +214,7 @@ function LiveQueue() {
       </main>
 
       <Link
-        to="/queue/add"
+        to="/queue-add"
         className="fixed bottom-5 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 h-14 rounded-full shadow-lg shadow-primary/25 font-medium"
       >
         <Plus className="h-5 w-5" /> Add to queue
