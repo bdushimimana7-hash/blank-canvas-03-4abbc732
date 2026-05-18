@@ -18,7 +18,7 @@ import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as QueueAddRouteImport } from './routes/queue.add'
+import { Route as QueueAddRouteImport } from './routes/queue-add'
 
 const SuperadminRoute = SuperadminRouteImport.update({
   id: '/superadmin',
@@ -66,8 +66,8 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const QueueAddRoute = QueueAddRouteImport.update({
-  id: '/queue/add',
-  path: '/queue/add',
+  id: '/queue-add',
+  path: '/queue-add',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -81,7 +81,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/superadmin': typeof SuperadminRoute
-  '/queue/add': typeof QueueAddRoute
+  '/queue-add': typeof QueueAddRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,7 +93,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/superadmin': typeof SuperadminRoute
-  '/queue/add': typeof QueueAddRoute
+  '/queue-add': typeof QueueAddRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,7 +106,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/superadmin': typeof SuperadminRoute
-  '/queue/add': typeof QueueAddRoute
+  '/queue-add': typeof QueueAddRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,7 +120,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/signup'
     | '/superadmin'
-    | '/queue/add'
+    | '/queue-add'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -132,7 +132,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/signup'
     | '/superadmin'
-    | '/queue/add'
+    | '/queue-add'
   id:
     | '__root__'
     | '/'
@@ -144,7 +144,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/signup'
     | '/superadmin'
-    | '/queue/add'
+    | '/queue-add'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -225,10 +225,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/queue/add': {
-      id: '/queue/add'
-      path: '/queue/add'
-      fullPath: '/queue/add'
+    '/queue-add': {
+      id: '/queue-add'
+      path: '/queue-add'
+      fullPath: '/queue-add'
       preLoaderRoute: typeof QueueAddRouteImport
       parentRoute: typeof rootRouteImport
     }
