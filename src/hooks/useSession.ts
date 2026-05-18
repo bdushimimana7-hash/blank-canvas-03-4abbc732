@@ -42,7 +42,6 @@ export function useSession(): SessionInfo {
             .from("staff_profiles")
             .select("business_id, role")
             .eq("user_id", u.id)
-            .order("created_at", { ascending: true })
             .limit(1)
             .maybeSingle();
 
