@@ -66,9 +66,9 @@ const IndexRoute = IndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const QueueAddRoute = QueueAddRouteImport.update({
-  id: '/add',
-  path: '/add',
-  getParentRoute: () => QueueRoute,
+  id: '/queue/add',
+  path: '/queue/add',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -151,12 +151,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
-  QueueRoute: typeof QueueRouteWithChildren
+  QueueRoute: typeof QueueRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   SetupRoute: typeof SetupRoute
   SignupRoute: typeof SignupRoute
   SuperadminRoute: typeof SuperadminRoute
+  QueueAddRoute: typeof QueueAddRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -234,26 +235,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface QueueRouteChildren {
-  QueueAddRoute: typeof QueueAddRoute
-}
-
-const QueueRouteChildren: QueueRouteChildren = {
-  QueueAddRoute: QueueAddRoute,
-}
-
-const QueueRouteWithChildren = QueueRoute._addFileChildren(QueueRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
-  QueueRoute: QueueRouteWithChildren,
+  QueueRoute: QueueRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   SetupRoute: SetupRoute,
   SignupRoute: SignupRoute,
   SuperadminRoute: SuperadminRoute,
+  QueueAddRoute: QueueAddRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
