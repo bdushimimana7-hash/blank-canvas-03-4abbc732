@@ -88,7 +88,8 @@ function History() {
     });
     let busiest: { date: string; count: number } | null = null;
     counts.forEach((count, date) => {
-      if (!busiest || count > busiest.count) busiest = { date, count };
+      const b = busiest;
+      if (!b || count > b.count) busiest = { date, count };
     });
     const noShowRate = entries.length ? Math.round((noShow / entries.length) * 100) : 0;
     return { servedCount: served.length, avg, busiest, noShowRate };
