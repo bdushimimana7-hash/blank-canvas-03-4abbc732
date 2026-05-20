@@ -14,11 +14,11 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as QueueAddRouteImport } from './routes/queue-add'
 import { Route as QueueRouteImport } from './routes/queue'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as QueueAddRouteImport } from './routes/queue-add'
 
 const SuperadminRoute = SuperadminRouteImport.update({
   id: '/superadmin',
@@ -45,6 +45,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QueueAddRoute = QueueAddRouteImport.update({
+  id: '/queue-add',
+  path: '/queue-add',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QueueRoute = QueueRouteImport.update({
   id: '/queue',
   path: '/queue',
@@ -65,35 +70,30 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const QueueAddRoute = QueueAddRouteImport.update({
-  id: '/queue-add',
-  path: '/queue-add',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
+  '/queue-add': typeof QueueAddRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/superadmin': typeof SuperadminRoute
-  '/queue-add': typeof QueueAddRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
+  '/queue-add': typeof QueueAddRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/superadmin': typeof SuperadminRoute
-  '/queue-add': typeof QueueAddRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -101,12 +101,12 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/queue': typeof QueueRoute
+  '/queue-add': typeof QueueAddRoute
   '/reset-password': typeof ResetPasswordRoute
   '/settings': typeof SettingsRoute
   '/setup': typeof SetupRoute
   '/signup': typeof SignupRoute
   '/superadmin': typeof SuperadminRoute
-  '/queue-add': typeof QueueAddRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -115,36 +115,36 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/queue'
+    | '/queue-add'
     | '/reset-password'
     | '/settings'
     | '/setup'
     | '/signup'
     | '/superadmin'
-    | '/queue-add'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/dashboard'
     | '/login'
     | '/queue'
+    | '/queue-add'
     | '/reset-password'
     | '/settings'
     | '/setup'
     | '/signup'
     | '/superadmin'
-    | '/queue-add'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/login'
     | '/queue'
+    | '/queue-add'
     | '/reset-password'
     | '/settings'
     | '/setup'
     | '/signup'
     | '/superadmin'
-    | '/queue-add'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -152,12 +152,12 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   QueueRoute: typeof QueueRoute
+  QueueAddRoute: typeof QueueAddRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   SetupRoute: typeof SetupRoute
   SignupRoute: typeof SignupRoute
   SuperadminRoute: typeof SuperadminRoute
-  QueueAddRoute: typeof QueueAddRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -197,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/queue-add': {
+      id: '/queue-add'
+      path: '/queue-add'
+      fullPath: '/queue-add'
+      preLoaderRoute: typeof QueueAddRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/queue': {
       id: '/queue'
       path: '/queue'
@@ -225,13 +232,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/queue-add': {
-      id: '/queue-add'
-      path: '/queue-add'
-      fullPath: '/queue-add'
-      preLoaderRoute: typeof QueueAddRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -240,13 +240,23 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   QueueRoute: QueueRoute,
+  QueueAddRoute: QueueAddRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SettingsRoute: SettingsRoute,
   SetupRoute: SetupRoute,
   SignupRoute: SignupRoute,
   SuperadminRoute: SuperadminRoute,
-  QueueAddRoute: QueueAddRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
