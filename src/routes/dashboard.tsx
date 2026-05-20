@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
 import { sectorLabel } from "@/lib/sectors";
-import { Settings as SettingsIcon, ListOrdered } from "lucide-react";
+import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 
 export const Route = createFileRoute("/dashboard")({
@@ -15,11 +15,17 @@ export const Route = createFileRoute("/dashboard")({
 interface Entry {
   status: string; added_at: string; served_at: string | null;
 }
+interface RecentEntry {
+  status: string; added_at: string; served_at: string | null; queue_id: string;
+}
+interface QueueDay { id: string; date: string }
 
 function Dashboard() {
   const navigate = useNavigate();
   const { user, loading, businessId, businessName, sector, role } = useSession();
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [recent, setRecent] = useState<RecentEntry[]>([]);
+  const [recentQueues, setRecentQueues] = useState<QueueDay[]>([]);
 
   useEffect(() => {
     if (loading) return;
@@ -38,6 +44,25 @@ function Dashboard() {
       const { data } = await supabase
         .from("queue_entries").select("status, added_at, served_at").eq("queue_id", q.id);
       setEntries((data ?? []) as Entry[]);
+    })();
+  }, [businessId]);
+
+  useEffect(() => {
+    if (!businessId) return;
+    const since = new Date();
+    since.setDate(since.getDate() - 7);
+    const sinceDate = since.toISOString().slice(0, 10);
+    (async () => {
+      const { data: qs } = await supabase
+        .from("queues").select("id, date").eq("business_id", businessId).gte("date", sinceDate);
+      const queueRows = (qs ?? []) as QueueDay[];
+      setRecentQueues(queueRows);
+      if (queueRows.length === 0) { setRecent([]); return; }
+      const { data } = await supabase
+        .from("queue_entries")
+        .select("status, added_at, served_at, queue_id")
+        .in("queue_id", queueRows.map((r) => r.id));
+      setRecent((data ?? []) as RecentEntry[]);
     })();
   }, [businessId]);
 
@@ -60,6 +85,28 @@ function Dashboard() {
     count: entries.filter((e) => new Date(e.added_at).getHours() === h).length,
   }));
 
+  const dateByQueue = new Map(recentQueues.map((q) => [q.id, q.date]));
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toISOString().slice(0, 10);
+  });
+  const last7 = last7Days.map((date) => {
+    const dayEntries = recent.filter((e) => dateByQueue.get(e.queue_id) === date);
+    const served = dayEntries.filter((e) => e.status === "served");
+    const durations = served
+      .filter((e) => e.served_at)
+      .map((e) => (new Date(e.served_at!).getTime() - new Date(e.added_at).getTime()) / 60000);
+    const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+    return {
+      date,
+      total: dayEntries.length,
+      served: served.length,
+      noShow: dayEntries.filter((e) => e.status === "no_show").length,
+      avg,
+    };
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -68,6 +115,9 @@ function Dashboard() {
           <div className="flex items-center gap-3">
             <Link to="/queue" className="text-sm font-medium text-foreground hover:text-primary inline-flex items-center gap-1.5">
               <ListOrdered className="h-4 w-4" /> Live queue
+            </Link>
+            <Link to="/history" className="text-sm font-medium text-foreground hover:text-primary inline-flex items-center gap-1.5">
+              <HistoryIcon className="h-4 w-4" /> History
             </Link>
             <Link to="/settings" className="text-sm font-medium text-foreground hover:text-primary inline-flex items-center gap-1.5">
               <SettingsIcon className="h-4 w-4" /> Settings
@@ -114,6 +164,37 @@ function Dashboard() {
                 <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="mt-6 bg-card border rounded-xl p-5">
+          <div className="flex items-baseline justify-between mb-4">
+            <h2 className="text-base font-semibold">Last 7 days</h2>
+            <Link to="/history" className="text-xs font-medium text-primary hover:underline">View full history →</Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-4 font-medium">Date</th>
+                  <th className="py-2 pr-4 font-medium">Total</th>
+                  <th className="py-2 pr-4 font-medium">Served</th>
+                  <th className="py-2 pr-4 font-medium">No-shows</th>
+                  <th className="py-2 pr-4 font-medium">Avg wait</th>
+                </tr>
+              </thead>
+              <tbody>
+                {last7.map((d) => (
+                  <tr key={d.date} className="border-t">
+                    <td className="py-2 pr-4">{new Date(d.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</td>
+                    <td className="py-2 pr-4 tabular-nums">{d.total}</td>
+                    <td className="py-2 pr-4 tabular-nums text-success">{d.served}</td>
+                    <td className="py-2 pr-4 tabular-nums text-muted-foreground">{d.noShow}</td>
+                    <td className="py-2 pr-4 tabular-nums">{d.avg ? `${d.avg}m` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </main>
