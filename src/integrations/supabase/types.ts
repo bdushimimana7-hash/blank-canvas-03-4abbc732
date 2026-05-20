@@ -18,34 +18,40 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          headsup_position: number
           id: string
           name: string
           owner_id: string | null
           sector: string
           sms_template_add: string
           sms_template_call: string
+          sms_template_first: string
           sms_template_headsup: string
         }
         Insert: {
           active?: boolean
           created_at?: string
+          headsup_position?: number
           id?: string
           name: string
           owner_id?: string | null
           sector?: string
           sms_template_add?: string
           sms_template_call?: string
+          sms_template_first?: string
           sms_template_headsup?: string
         }
         Update: {
           active?: boolean
           created_at?: string
+          headsup_position?: number
           id?: string
           name?: string
           owner_id?: string | null
           sector?: string
           sms_template_add?: string
           sms_template_call?: string
+          sms_template_first?: string
           sms_template_headsup?: string
         }
         Relationships: []

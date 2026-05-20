@@ -1,0 +1,2 @@
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS headsup_position INTEGER NOT NULL DEFAULT 3;
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS sms_template_first TEXT NOT NULL DEFAULT 'Hi {name}, you are next in line at {business}. Please come in now or let staff know you have arrived.';

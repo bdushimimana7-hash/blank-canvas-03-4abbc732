@@ -107,7 +107,7 @@ function AddToQueue() {
 
       // Get business sms template (non-blocking — failure shouldn't prevent insert)
       const { data: biz } = await supabase
-        .from("businesses").select("sms_template_add").eq("id", businessId).maybeSingle();
+        .from("businesses").select("sms_template_add, sms_template_first").eq("id", businessId).maybeSingle();
 
       const { data: insertedEntry, error: insErr } = await supabase.from("queue_entries").insert({
         queue_id: queueId,
@@ -128,8 +128,11 @@ function AddToQueue() {
       navigate({ to: "/queue" });
 
       // Fire SMS in the background — never block the customer being added
-      if (biz?.sms_template_add) {
-        const message = fillTemplate(biz.sms_template_add, {
+      const tpl = position === 1
+        ? (biz?.sms_template_first ?? null)
+        : (biz?.sms_template_add ?? null);
+      if (tpl) {
+        const message = fillTemplate(tpl, {
           name: savedName, position, wait, business: businessName ?? "",
         });
         sendSmsFn({ data: { phone: formatted, message } })

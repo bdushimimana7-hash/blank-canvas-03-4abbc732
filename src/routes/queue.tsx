@@ -75,8 +75,11 @@ function LiveQueue() {
       .eq("queue_id", q.id)
       .eq("status", "waiting")
       .order("position");
-    if (!waitingList || waitingList.length < 3) return;
-    const third = waitingList[2];
+    const { data: bizCfg } = await supabase
+      .from("businesses").select("headsup_position").eq("id", businessId).maybeSingle();
+    const headsupPos = Math.max(1, Math.min(5, bizCfg?.headsup_position ?? 3));
+    if (!waitingList || waitingList.length < headsupPos) return;
+    const third = waitingList[headsupPos - 1];
     if (third.headsup_sent) return;
     // Atomic claim: only the first call that flips false -> true gets to send.
     const { data: claimed } = await supabase
@@ -90,7 +93,7 @@ function LiveQueue() {
       .from("businesses").select("sms_template_headsup").eq("id", businessId).single();
     if (!biz?.sms_template_headsup) return;
     const message = fillTemplate(biz.sms_template_headsup, {
-      name: third.customer_name, position: 3, wait: third.wait_minutes ?? 0, business: businessName ?? "",
+      name: third.customer_name, position: headsupPos, wait: third.wait_minutes ?? 0, business: businessName ?? "",
     });
     const r = await sendSmsFn({ data: { phone: third.customer_phone, message } }).catch(() => ({ success: false }));
     if (!r.success) {

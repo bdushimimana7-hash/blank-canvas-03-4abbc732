@@ -27,8 +27,10 @@ function SettingsPage() {
   const [name, setName] = useState("");
   const [sector, setSector] = useState("other");
   const [tplAdd, setTplAdd] = useState("");
+  const [tplFirst, setTplFirst] = useState("");
   const [tplHeadsup, setTplHeadsup] = useState("");
   const [tplCall, setTplCall] = useState("");
+  const [headsupPos, setHeadsupPos] = useState<number>(3);
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -50,12 +52,14 @@ function SettingsPage() {
   const reload = async () => {
     if (!businessId) return;
     const { data: biz } = await supabase
-      .from("businesses").select("name, sector, sms_template_add, sms_template_headsup, sms_template_call").eq("id", businessId).single();
+      .from("businesses").select("name, sector, sms_template_add, sms_template_first, sms_template_headsup, sms_template_call, headsup_position").eq("id", businessId).single();
     if (biz) {
       setName(biz.name); setSector(biz.sector);
       setTplAdd(biz.sms_template_add);
+      setTplFirst((biz as { sms_template_first?: string }).sms_template_first ?? "");
       setTplHeadsup(biz.sms_template_headsup);
       setTplCall(biz.sms_template_call);
+      setHeadsupPos((biz as { headsup_position?: number }).headsup_position ?? 3);
     }
     const { data: sp } = await supabase
       .from("staff_profiles").select("id, user_id, full_name, role").eq("business_id", businessId);
@@ -68,7 +72,14 @@ function SettingsPage() {
     if (!businessId) return;
     setSaving(true);
     const { error } = await supabase.from("businesses")
-      .update({ name, sector, sms_template_add: tplAdd, sms_template_headsup: tplHeadsup, sms_template_call: tplCall })
+      .update({
+        name, sector,
+        sms_template_add: tplAdd,
+        sms_template_first: tplFirst,
+        sms_template_headsup: tplHeadsup,
+        sms_template_call: tplCall,
+        headsup_position: headsupPos,
+      })
       .eq("id", businessId);
     setSaving(false);
     if (error) toast.error(error.message); else toast.success("Settings saved");
@@ -142,9 +153,22 @@ function SettingsPage() {
           <div className="mt-5 space-y-4">
             <TemplateField id="tpla" label="1. When customer joins"
               value={tplAdd} onChange={setTplAdd} business={name} />
-            <TemplateField id="tplh" label="2. Heads-up (auto-sent at position 3)"
+            <TemplateField id="tplf" label="2. When customer is first in queue"
+              value={tplFirst} onChange={setTplFirst} business={name} />
+            <div className="space-y-1.5">
+              <Label htmlFor="hpos">Send heads-up SMS when customer reaches position:</Label>
+              <select
+                id="hpos"
+                value={headsupPos}
+                onChange={(e) => setHeadsupPos(Number(e.target.value))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                {[1,2,3,4,5].map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <TemplateField id="tplh" label={`3. Heads-up (auto-sent at position ${headsupPos})`}
               value={tplHeadsup} onChange={setTplHeadsup} business={name} />
-            <TemplateField id="tplc" label="3. When customer is called"
+            <TemplateField id="tplc" label="4. When customer is called"
               value={tplCall} onChange={setTplCall} business={name} />
           </div>
         </section>
