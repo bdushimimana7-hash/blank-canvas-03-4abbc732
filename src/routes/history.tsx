@@ -86,11 +86,13 @@ function History() {
       const d = dateByQueue.get(e.queue_id) ?? e.added_at.slice(0, 10);
       counts.set(d, (counts.get(d) ?? 0) + 1);
     });
-    let busiest: { date: string; count: number } | null = null;
-    counts.forEach((count, date) => {
-      const b = busiest;
-      if (!b || count > b.count) busiest = { date, count };
-    });
+    const entriesArr = Array.from(counts.entries());
+    const busiest = entriesArr.length
+      ? entriesArr.reduce<{ date: string; count: number }>(
+          (acc, [date, count]) => (count > acc.count ? { date, count } : acc),
+          { date: entriesArr[0][0], count: entriesArr[0][1] },
+        )
+      : null;
     const noShowRate = entries.length ? Math.round((noShow / entries.length) * 100) : 0;
     return { servedCount: served.length, avg, busiest, noShowRate };
   }, [entries, dateByQueue]);
