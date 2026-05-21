@@ -21,6 +21,7 @@ export type Database = {
           headsup_position: number
           id: string
           name: string
+          onboarding_complete: boolean
           owner_id: string | null
           sector: string
           sms_template_add: string
@@ -34,6 +35,7 @@ export type Database = {
           headsup_position?: number
           id?: string
           name: string
+          onboarding_complete?: boolean
           owner_id?: string | null
           sector?: string
           sms_template_add?: string
@@ -47,6 +49,7 @@ export type Database = {
           headsup_position?: number
           id?: string
           name?: string
+          onboarding_complete?: boolean
           owner_id?: string | null
           sector?: string
           sms_template_add?: string
