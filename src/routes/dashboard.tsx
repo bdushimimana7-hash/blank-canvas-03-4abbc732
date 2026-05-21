@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
 import { sectorLabel } from "@/lib/sectors";
-import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon } from "lucide-react";
+import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 
 export const Route = createFileRoute("/dashboard")({
@@ -20,12 +20,25 @@ interface RecentEntry {
 }
 interface QueueDay { id: string; date: string }
 
+const DEFAULT_TEMPLATES = {
+  sms_template_add: "Hi {name}, you are number {position} in the queue at {business}. Estimated wait: {wait} minutes. We will alert you when you are close.",
+  sms_template_call: "Hi {name}, it is your turn at {business}. Please come in now.",
+  sms_template_headsup: "Hi {name}, you are 3rd in line at {business}. Please start making your way back now.",
+  sms_template_first: "Hi {name}, you are next in line at {business}. Please come in now or let staff know you have arrived.",
+};
+
 function Dashboard() {
   const navigate = useNavigate();
   const { user, loading, businessId, businessName, sector, role } = useSession();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [recent, setRecent] = useState<RecentEntry[]>([]);
   const [recentQueues, setRecentQueues] = useState<QueueDay[]>([]);
+  const [onboarding, setOnboarding] = useState<{
+    show: boolean;
+    smsCustomized: boolean;
+    hasStaff: boolean;
+    hasEntry: boolean;
+  } | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -63,6 +76,44 @@ function Dashboard() {
         .select("status, added_at, served_at, queue_id")
         .in("queue_id", queueRows.map((r) => r.id));
       setRecent((data ?? []) as RecentEntry[]);
+    })();
+  }, [businessId]);
+
+  useEffect(() => {
+    if (!businessId) return;
+    (async () => {
+      const { data: biz } = await supabase
+        .from("businesses")
+        .select("onboarding_complete, sms_template_add, sms_template_call, sms_template_headsup, sms_template_first")
+        .eq("id", businessId)
+        .maybeSingle();
+      if (!biz || biz.onboarding_complete) { setOnboarding(null); return; }
+
+      const smsCustomized =
+        biz.sms_template_add !== DEFAULT_TEMPLATES.sms_template_add ||
+        biz.sms_template_call !== DEFAULT_TEMPLATES.sms_template_call ||
+        biz.sms_template_headsup !== DEFAULT_TEMPLATES.sms_template_headsup ||
+        biz.sms_template_first !== DEFAULT_TEMPLATES.sms_template_first;
+
+      const { count: staffCount } = await supabase
+        .from("staff_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .neq("role", "owner");
+      const hasStaff = (staffCount ?? 0) > 0;
+
+      const { count: entryCount } = await supabase
+        .from("queue_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", businessId);
+      const hasEntry = (entryCount ?? 0) > 0;
+
+      if (smsCustomized && hasStaff && hasEntry) {
+        await supabase.from("businesses").update({ onboarding_complete: true }).eq("id", businessId);
+        setOnboarding(null);
+        return;
+      }
+      setOnboarding({ show: true, smsCustomized, hasStaff, hasEntry });
     })();
   }, [businessId]);
 
@@ -137,6 +188,14 @@ function Dashboard() {
           </span>
         </div>
         <p className="text-sm text-muted-foreground">Today, {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+
+        {onboarding?.show && (
+          <OnboardingCard
+            smsCustomized={onboarding.smsCustomized}
+            hasStaff={onboarding.hasStaff}
+            hasEntry={onboarding.hasEntry}
+          />
+        )}
 
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
           <StatCard label="Total today" value={total} />
@@ -213,6 +272,53 @@ function StatCard({ label, value, suffix, tone }: { label: string; value: number
       <div className={`mt-1 text-2xl font-semibold tabular-nums ${accent}`}>
         {value}{suffix && <span className="text-sm font-medium text-muted-foreground ml-1">{suffix}</span>}
       </div>
+    </div>
+  );
+}
+
+function OnboardingCard({ smsCustomized, hasStaff, hasEntry }: { smsCustomized: boolean; hasStaff: boolean; hasEntry: boolean }) {
+  const steps = [
+    { label: "Account created", done: true, to: null as string | null },
+    { label: "Customize your SMS messages", done: smsCustomized, to: "/settings" },
+    { label: "Add your first staff member", done: hasStaff, to: "/settings" },
+    { label: "Add your first customer to the queue", done: hasEntry, to: "/queue-add" },
+  ];
+  const completed = steps.filter((s) => s.done).length;
+  const pct = Math.round((completed / steps.length) * 100);
+  return (
+    <div className="mt-6 bg-card border rounded-xl p-5">
+      <div className="flex items-baseline justify-between mb-1">
+        <h2 className="text-base font-semibold">Get started</h2>
+        <span className="text-xs text-muted-foreground tabular-nums">{completed} of {steps.length} done</span>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">Finish setting up your queue. This card disappears once you're done.</p>
+      <div className="h-1.5 w-full bg-accent rounded-full overflow-hidden mb-5">
+        <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <ul className="space-y-2">
+        {steps.map((s) => {
+          const content = (
+            <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${s.to && !s.done ? "hover:bg-accent" : ""}`}>
+              {s.done ? (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Check className="h-3 w-3" />
+                </span>
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground" />
+              )}
+              <span className={`text-sm ${s.done ? "text-muted-foreground line-through" : "text-foreground font-medium"}`}>
+                {s.label}
+              </span>
+              {s.to && !s.done && <span className="ml-auto text-xs text-primary">→</span>}
+            </div>
+          );
+          return (
+            <li key={s.label}>
+              {s.to && !s.done ? <Link to={s.to as "/settings" | "/queue-add"}>{content}</Link> : content}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
