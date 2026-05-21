@@ -275,3 +275,50 @@ function StatCard({ label, value, suffix, tone }: { label: string; value: number
     </div>
   );
 }
+
+function OnboardingCard({ smsCustomized, hasStaff, hasEntry }: { smsCustomized: boolean; hasStaff: boolean; hasEntry: boolean }) {
+  const steps = [
+    { label: "Account created", done: true, to: null as string | null },
+    { label: "Customize your SMS messages", done: smsCustomized, to: "/settings" },
+    { label: "Add your first staff member", done: hasStaff, to: "/settings" },
+    { label: "Add your first customer to the queue", done: hasEntry, to: "/queue-add" },
+  ];
+  const completed = steps.filter((s) => s.done).length;
+  const pct = Math.round((completed / steps.length) * 100);
+  return (
+    <div className="mt-6 bg-card border rounded-xl p-5">
+      <div className="flex items-baseline justify-between mb-1">
+        <h2 className="text-base font-semibold">Get started</h2>
+        <span className="text-xs text-muted-foreground tabular-nums">{completed} of {steps.length} done</span>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4">Finish setting up your queue. This card disappears once you're done.</p>
+      <div className="h-1.5 w-full bg-accent rounded-full overflow-hidden mb-5">
+        <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <ul className="space-y-2">
+        {steps.map((s) => {
+          const content = (
+            <div className={`flex items-center gap-3 py-2 px-3 rounded-lg ${s.to && !s.done ? "hover:bg-accent" : ""}`}>
+              {s.done ? (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <Check className="h-3 w-3" />
+                </span>
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground" />
+              )}
+              <span className={`text-sm ${s.done ? "text-muted-foreground line-through" : "text-foreground font-medium"}`}>
+                {s.label}
+              </span>
+              {s.to && !s.done && <span className="ml-auto text-xs text-primary">→</span>}
+            </div>
+          );
+          return (
+            <li key={s.label}>
+              {s.to && !s.done ? <Link to={s.to as "/settings" | "/queue-add"}>{content}</Link> : content}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
