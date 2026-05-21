@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +7,9 @@ import { Label } from "@/components/ui/label";
 import { PossacLogo } from "@/components/Brand";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/useSession";
-import { ensureSeedSuperadmin } from "@/lib/signup.functions";
-import { useServerFn } from "@tanstack/react-start";
+import { callSignup } from "@/lib/edge-functions";
 
-export const Route = createFileRoute("/login")({
-  component: LoginPage,
-  head: () => ({ meta: [{ title: "Sign in — Possac" }] }),
-});
-
-function LoginPage() {
+export default function LoginPage() {
   const navigate = useNavigate();
   const { user, role, loading } = useSession();
   const [email, setEmail] = useState("");
@@ -24,17 +18,18 @@ function LoginPage() {
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [sendingReset, setSendingReset] = useState(false);
-  const seedFn = useServerFn(ensureSeedSuperadmin);
+
+  useEffect(() => { document.title = "Sign in — Possac"; }, []);
 
   useEffect(() => {
-    seedFn().catch(() => {});
-  }, [seedFn]);
+    callSignup("ensure_seed_superadmin").catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (loading || !user) return;
-    if (role === "superadmin") navigate({ to: "/superadmin" });
-    else if (role === "owner") navigate({ to: "/dashboard" });
-    else if (role === "staff") navigate({ to: "/queue" });
+    if (role === "superadmin") navigate("/superadmin");
+    else if (role === "owner") navigate("/dashboard");
+    else if (role === "staff") navigate("/queue");
   }, [user, role, loading, navigate]);
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -42,7 +37,6 @@ function LoginPage() {
     setSubmitting(true);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setSubmitting(false); toast.error(error.message); return; }
-    // Check business active status (owner/staff only)
     if (data.user) {
       const { data: sp } = await supabase
         .from("staff_profiles")

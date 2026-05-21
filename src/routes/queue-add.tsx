@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,116 +8,73 @@ import { toast } from "sonner";
 import { useSession } from "@/hooks/useSession";
 import { sectorCopy } from "@/lib/sectors";
 import { fillTemplate, formatRwandaPhone } from "@/lib/format";
-import { sendSms } from "@/lib/sms.functions";
-import { useServerFn } from "@tanstack/react-start";
+import { sendSmsViaEdge } from "@/lib/edge-functions";
 import { ArrowLeft } from "lucide-react";
-
-export const Route = createFileRoute("/queue-add")({
-  component: AddToQueue,
-  head: () => ({ meta: [{ title: "Add to queue — Possac" }] }),
-});
 
 const AVG_SERVICE_MIN = 10;
 
-function AddToQueue() {
+export default function AddToQueue() {
   const navigate = useNavigate();
-  const { user, loading, role: _role, businessId, sector, businessName } = useSession();
+  const { user, loading, businessId, sector, businessName } = useSession();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const sendSmsFn = useServerFn(sendSms);
 
-  useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
-  }, [loading, user, navigate]);
+  useEffect(() => { document.title = "Add to queue — Possac"; }, []);
+  useEffect(() => { if (!loading && !user) navigate("/login"); }, [loading, user, navigate]);
 
   const copy = sectorCopy(sector);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (loading) {
-      setFormError("Still loading your session — please wait a moment.");
-      return;
-    }
-    if (!user) {
-      setFormError("You are not signed in. Please log in again.");
-      return;
-    }
+    if (loading) { setFormError("Still loading your session — please wait a moment."); return; }
+    if (!user) { setFormError("You are not signed in. Please log in again."); return; }
     if (!businessId) {
       setFormError("No business is linked to your account. Contact your administrator.");
-      console.error("[queue.add] Missing businessId on session", { userId: user?.id });
       return;
     }
     const formatted = formatRwandaPhone(phone);
-    if (!formatted) {
-      setFormError("Please enter a valid Rwandan phone number (07XXXXXXXX).");
-      return;
-    }
+    if (!formatted) { setFormError("Please enter a valid Rwandan phone number (07XXXXXXXX)."); return; }
     setSubmitting(true);
 
     try {
-      // Get or create today's queue
       const today = new Date().toISOString().slice(0, 10);
       let queueId: string | null = null;
       const { data: existingQueues, error: qSelErr } = await supabase
-        .from("queues")
-        .select("id")
-        .eq("business_id", businessId)
-        .eq("date", today)
-        .order("created_at", { ascending: true })
-        .limit(1);
+        .from("queues").select("id").eq("business_id", businessId).eq("date", today)
+        .order("created_at", { ascending: true }).limit(1);
       if (qSelErr) throw new Error("Could not load today's queue: " + qSelErr.message);
       if (existingQueues?.[0]) {
         queueId = existingQueues[0].id;
       } else {
         const { data: created, error: qInsErr } = await supabase
-          .from("queues")
-          .insert({ business_id: businessId, date: today })
-          .select("id")
-          .single();
-
-        if (created?.id) {
-          queueId = created.id;
-        } else {
-          const { data: fallbackQueues, error: fallbackErr } = await supabase
-            .from("queues")
-            .select("id")
-            .eq("business_id", businessId)
-            .eq("date", today)
-            .order("created_at", { ascending: true })
-            .limit(1);
-          if (fallbackErr) throw new Error("Could not create today's queue: " + fallbackErr.message);
-          if (!fallbackQueues?.[0]?.id) {
-            throw new Error("Could not create today's queue: " + (qInsErr?.message ?? "unknown"));
-          }
-          queueId = fallbackQueues[0].id;
+          .from("queues").insert({ business_id: businessId, date: today }).select("id").single();
+        if (created?.id) queueId = created.id;
+        else {
+          const { data: fb, error: fbErr } = await supabase
+            .from("queues").select("id").eq("business_id", businessId).eq("date", today)
+            .order("created_at", { ascending: true }).limit(1);
+          if (fbErr) throw new Error("Could not create today's queue: " + fbErr.message);
+          if (!fb?.[0]?.id) throw new Error("Could not create today's queue: " + (qInsErr?.message ?? "unknown"));
+          queueId = fb[0].id;
         }
       }
 
-      // Compute position from waiting count
       const { count: waitingCount } = await supabase
-        .from("queue_entries")
-        .select("id", { count: "exact", head: true })
-        .eq("queue_id", queueId)
-        .eq("status", "waiting");
+        .from("queue_entries").select("id", { count: "exact", head: true })
+        .eq("queue_id", queueId).eq("status", "waiting");
       const position = (waitingCount ?? 0) + 1;
       const wait = position * AVG_SERVICE_MIN;
 
-      // Get business sms template (non-blocking — failure shouldn't prevent insert)
       const { data: biz } = await supabase
         .from("businesses").select("sms_template_add, sms_template_first").eq("id", businessId).maybeSingle();
 
       const { data: insertedEntry, error: insErr } = await supabase.from("queue_entries").insert({
-        queue_id: queueId,
-        business_id: businessId,
-        customer_name: name.trim(),
-        customer_phone: formatted,
-        position,
-        status: "waiting",
-        added_by: user.id,
-        wait_minutes: wait,
+        queue_id: queueId, business_id: businessId,
+        customer_name: name.trim(), customer_phone: formatted,
+        position, status: "waiting", added_by: user.id, wait_minutes: wait,
       }).select("id").single();
       if (insErr) throw new Error("Could not add to queue: " + insErr.message);
       if (!insertedEntry?.id) throw new Error("Could not add to queue: no record was created.");
@@ -125,9 +82,8 @@ function AddToQueue() {
       toast.success("Added to queue");
       const savedName = name.trim();
       setName(""); setPhone(""); setSubmitting(false);
-      navigate({ to: "/queue" });
+      navigate("/queue");
 
-      // Fire SMS in the background — never block the customer being added
       const tpl = position === 1
         ? (biz?.sms_template_first ?? null)
         : (biz?.sms_template_add ?? null);
@@ -135,19 +91,13 @@ function AddToQueue() {
         const message = fillTemplate(tpl, {
           name: savedName, position, wait, business: businessName ?? "",
         });
-        sendSmsFn({ data: { phone: formatted, message } })
+        sendSmsViaEdge(formatted, message)
           .then((result) => {
-            if (!result.success) {
-              toast.warning("Added to queue. SMS failed — check Pindo settings.");
-            }
+            if (!result.success) toast.warning("Added to queue. SMS failed — check Pindo settings.");
           })
-          .catch((err) => {
-            console.error("[queue.add] SMS error", err);
-            toast.warning("Added to queue. SMS failed — check Pindo settings.");
-          });
+          .catch(() => toast.warning("Added to queue. SMS failed — check Pindo settings."));
       }
     } catch (err) {
-      console.error("[queue.add] Insert failed", err);
       const msg = err instanceof Error ? err.message : "Unexpected error adding to queue.";
       setFormError(msg);
       toast.error(msg);
@@ -162,10 +112,7 @@ function AddToQueue() {
           <Link to="/queue" className="inline-flex items-center gap-1.5 text-sm text-primary font-medium">
             <ArrowLeft className="h-4 w-4" /> Live queue
           </Link>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >Sign out</button>
+          <button onClick={() => supabase.auth.signOut()} className="text-xs text-muted-foreground hover:text-foreground">Sign out</button>
         </div>
         <h1 className="text-2xl font-semibold tracking-tight">Add to queue</h1>
         <p className="text-sm text-muted-foreground mt-1">

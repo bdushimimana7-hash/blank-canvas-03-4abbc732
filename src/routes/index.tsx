@@ -1,39 +1,22 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
 import { Button } from "@/components/ui/button";
 
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Possac — A simple queue system for busy businesses" },
-      {
-        name: "description",
-        content:
-          "Possac is a calm, simple queue system. Add customers, let them wait from anywhere, and call them back when it's their turn.",
-      },
-      { property: "og:title", content: "Possac — A simple queue system for busy businesses" },
-      {
-        property: "og:description",
-        content:
-          "Add customers to your queue. They wait from anywhere. You call them back when ready.",
-      },
-    ],
-  }),
-  component: IndexPage,
-});
-
-function IndexPage() {
+export default function IndexPage() {
   const { user, loading, role } = useSession();
   const navigate = useNavigate();
   useEffect(() => {
     if (loading || !user) return;
-    if (role === "superadmin") navigate({ to: "/superadmin" });
-    else if (role === "owner") navigate({ to: "/dashboard" });
-    else if (role === "staff") navigate({ to: "/queue" });
+    if (role === "superadmin") navigate("/superadmin");
+    else if (role === "owner") navigate("/dashboard");
+    else if (role === "staff") navigate("/queue");
   }, [user, loading, role, navigate]);
+
+  useEffect(() => {
+    document.title = "Possac — A simple queue system for busy businesses";
+  }, []);
 
   if (loading || user) {
     return (
@@ -49,7 +32,6 @@ function IndexPage() {
 function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Nav */}
       <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <Link to="/" aria-label="Possac home">
@@ -69,7 +51,6 @@ function Landing() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="mx-auto max-w-4xl px-5 pt-20 pb-24 sm:pt-28 sm:pb-32">
         <h1 className="text-4xl sm:text-6xl font-semibold tracking-tight leading-[1.05] text-foreground">
           Stop losing customers to long lines.
@@ -94,7 +75,6 @@ function Landing() {
         </p>
       </section>
 
-      {/* How it works */}
       <section className="border-t border-border/60 bg-secondary/30">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:py-24">
           <div className="max-w-2xl">
@@ -107,27 +87,13 @@ function Landing() {
           </div>
           <ol className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              {
-                t: "Create your account",
-                d: "Sign up and set up your business in under 2 minutes.",
-              },
-              {
-                t: "Add customers to the queue",
-                d: "Your receptionist adds a name and phone number. That's it.",
-              },
-              {
-                t: "They wait from anywhere",
-                d: "The customer gets an SMS with their position and estimated wait. They can leave and come back.",
-              },
-              {
-                t: "Call them when ready",
-                d: "One tap sends \"It's your turn.\" No crowded waiting rooms.",
-              },
+              { t: "Create your account", d: "Sign up and set up your business in under 2 minutes." },
+              { t: "Add customers to the queue", d: "Your receptionist adds a name and phone number. That's it." },
+              { t: "They wait from anywhere", d: "The customer gets an SMS with their position and estimated wait. They can leave and come back." },
+              { t: "Call them when ready", d: "One tap sends \"It's your turn.\" No crowded waiting rooms." },
             ].map((s, i) => (
               <li key={i} className="relative">
-                <div className="text-sm font-mono text-primary">
-                  0{i + 1}
-                </div>
+                <div className="text-sm font-mono text-primary">0{i + 1}</div>
                 <h3 className="mt-3 text-base font-semibold text-foreground">{s.t}</h3>
                 <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{s.d}</p>
               </li>
@@ -136,7 +102,6 @@ function Landing() {
         </div>
       </section>
 
-      {/* SMS preview */}
       <section className="border-t border-border/60">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:py-24">
           <div className="max-w-2xl">
@@ -147,21 +112,11 @@ function Landing() {
               Your customers always know where they stand.
             </h2>
           </div>
-
           <div className="mt-14 grid gap-6 md:grid-cols-3">
             {[
-              {
-                label: "On join",
-                body: "Hi Amina, you are number 4 in the queue. Estimated wait: 35 minutes. We will alert you when you are close.",
-              },
-              {
-                label: "Heads-up",
-                body: "Hi Amina, you are 3rd in line. Start making your way now.",
-              },
-              {
-                label: "Your turn",
-                body: "Hi Amina, it is your turn. Please come in now.",
-              },
+              { label: "On join", body: "Hi Amina, you are number 4 in the queue. Estimated wait: 35 minutes. We will alert you when you are close." },
+              { label: "Heads-up", body: "Hi Amina, you are 3rd in line. Start making your way now." },
+              { label: "Your turn", body: "Hi Amina, it is your turn. Please come in now." },
             ].map((m) => (
               <div key={m.label} className="flex flex-col gap-3">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -176,7 +131,6 @@ function Landing() {
         </div>
       </section>
 
-      {/* Who it's for */}
       <section className="border-t border-border/60 bg-secondary/30">
         <div className="mx-auto max-w-6xl px-5 py-20 sm:py-24">
           <div className="max-w-2xl">
@@ -188,18 +142,8 @@ function Landing() {
             </h2>
           </div>
           <div className="mt-12 grid grid-cols-2 sm:grid-cols-3 gap-px overflow-hidden rounded-xl border border-border bg-border">
-            {[
-              "Salons",
-              "Pharmacies",
-              "Banks & SACCOs",
-              "Government offices",
-              "Insurance companies",
-              "Restaurants",
-            ].map((s) => (
-              <div
-                key={s}
-                className="bg-card px-6 py-8 text-center text-sm font-medium text-foreground"
-              >
+            {["Salons", "Pharmacies", "Banks & SACCOs", "Government offices", "Insurance companies", "Restaurants"].map((s) => (
+              <div key={s} className="bg-card px-6 py-8 text-center text-sm font-medium text-foreground">
                 {s}
               </div>
             ))}
@@ -207,7 +151,6 @@ function Landing() {
         </div>
       </section>
 
-      {/* Final CTA */}
       <section className="border-t border-border/60">
         <div className="mx-auto max-w-3xl px-5 py-24 sm:py-32 text-center">
           <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight">
@@ -224,17 +167,12 @@ function Landing() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-border/60">
         <div className="mx-auto max-w-6xl px-5 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <PossacLogo />
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link to="/login" className="hover:text-foreground transition-colors">
-              Sign in
-            </Link>
-            <Link to="/signup" className="hover:text-foreground transition-colors">
-              Sign up
-            </Link>
+            <Link to="/login" className="hover:text-foreground transition-colors">Sign in</Link>
+            <Link to="/signup" className="hover:text-foreground transition-colors">Sign up</Link>
           </nav>
           <p className="text-sm text-muted-foreground">© 2026 Possac.</p>
         </div>

@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
@@ -8,13 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SECTORS, sectorLabel } from "@/lib/sectors";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { createBusinessOwner, setBusinessActive, listBusinessesAdmin } from "@/lib/admin.functions";
-
-export const Route = createFileRoute("/superadmin")({
-  component: SuperAdmin,
-  head: () => ({ meta: [{ title: "Superadmin — Possac" }] }),
-});
+import { callAdmin } from "@/lib/edge-functions";
 
 interface BizRow {
   id: string; name: string; sector: string; active: boolean;
@@ -24,15 +18,13 @@ interface BizRow {
   entriesToday?: number;
 }
 
-function SuperAdmin() {
+export default function SuperAdmin() {
   const navigate = useNavigate();
   const { user, loading, role } = useSession();
   const [businesses, setBusinesses] = useState<BizRow[]>([]);
   const [smsToday, setSmsToday] = useState(0);
   const [entriesToday, setEntriesToday] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
-
-  // Create owner form
   const [bn, setBn] = useState("");
   const [bs, setBs] = useState("other");
   const [on, setOn] = useState("");
@@ -40,24 +32,21 @@ function SuperAdmin() {
   const [op, setOp] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const createFn = useServerFn(createBusinessOwner);
-  const toggleFn = useServerFn(setBusinessActive);
-  const listFn = useServerFn(listBusinessesAdmin);
-
+  useEffect(() => { document.title = "Superadmin — Possac"; }, []);
   useEffect(() => {
     if (loading) return;
-    if (!user) navigate({ to: "/login" });
+    if (!user) navigate("/login");
     else if (role !== "superadmin") {
-      if (role === "owner") navigate({ to: "/dashboard" });
-      else if (role === "staff") navigate({ to: "/queue" });
+      if (role === "owner") navigate("/dashboard");
+      else if (role === "staff") navigate("/queue");
     }
   }, [user, role, loading, navigate]);
 
   const reload = async () => {
     let baseRows: BizRow[] = [];
     try {
-      const res = await listFn();
-      baseRows = res.businesses as BizRow[];
+      const res = await callAdmin<{ businesses: BizRow[] }>("list_businesses_admin");
+      baseRows = res.businesses;
     } catch (err) {
       toast.error((err as Error).message);
       return;
@@ -90,13 +79,16 @@ function SuperAdmin() {
 
   useEffect(() => {
     if (role === "superadmin") reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
     try {
-      await createFn({ data: { business_name: bn, sector: bs, owner_name: on, owner_email: oe, password: op }});
+      await callAdmin("create_business_owner", {
+        business_name: bn, sector: bs, owner_name: on, owner_email: oe, password: op,
+      });
       toast.success("Business + owner created");
       setBn(""); setBs("other"); setOn(""); setOe(""); setOp("");
       setShowCreate(false);
@@ -107,7 +99,7 @@ function SuperAdmin() {
 
   const toggle = async (b: BizRow) => {
     try {
-      await toggleFn({ data: { business_id: b.id, active: !b.active } });
+      await callAdmin("set_business_active", { business_id: b.id, active: !b.active });
       reload();
     } catch (err) { toast.error((err as Error).message); }
   };

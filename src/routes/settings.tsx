@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
@@ -10,18 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { SECTORS } from "@/lib/sectors";
 import { fillTemplate } from "@/lib/format";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { inviteStaff, removeStaff } from "@/lib/admin.functions";
+import { callAdmin } from "@/lib/edge-functions";
 import { ArrowLeft, Trash2 } from "lucide-react";
-
-export const Route = createFileRoute("/settings")({
-  component: SettingsPage,
-  head: () => ({ meta: [{ title: "Settings — Possac" }] }),
-});
 
 interface StaffRow { id: string; user_id: string; full_name: string; role: string; }
 
-function SettingsPage() {
+export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, loading, businessId, role } = useSession();
   const [name, setName] = useState("");
@@ -33,20 +27,16 @@ function SettingsPage() {
   const [headsupPos, setHeadsupPos] = useState<number>(3);
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [saving, setSaving] = useState(false);
-
-  // Invite form
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePassword, setInvitePassword] = useState("");
   const [inviting, setInviting] = useState(false);
 
-  const inviteStaffFn = useServerFn(inviteStaff);
-  const removeStaffFn = useServerFn(removeStaff);
-
+  useEffect(() => { document.title = "Settings — Possac"; }, []);
   useEffect(() => {
     if (loading) return;
-    if (!user) navigate({ to: "/login" });
-    else if (role === "staff") navigate({ to: "/queue" });
+    if (!user) navigate("/login");
+    else if (role === "staff") navigate("/queue");
   }, [user, loading, role, navigate]);
 
   const reload = async () => {
@@ -74,10 +64,8 @@ function SettingsPage() {
     const { error } = await supabase.from("businesses")
       .update({
         name, sector,
-        sms_template_add: tplAdd,
-        sms_template_first: tplFirst,
-        sms_template_headsup: tplHeadsup,
-        sms_template_call: tplCall,
+        sms_template_add: tplAdd, sms_template_first: tplFirst,
+        sms_template_headsup: tplHeadsup, sms_template_call: tplCall,
         headsup_position: headsupPos,
       })
       .eq("id", businessId);
@@ -90,21 +78,20 @@ function SettingsPage() {
     if (!businessId) return;
     setInviting(true);
     try {
-      await inviteStaffFn({ data: {
+      await callAdmin("invite_staff", {
         business_id: businessId, full_name: inviteName, email: inviteEmail, password: invitePassword,
-      }});
+      });
       toast.success("Staff added");
       setInviteName(""); setInviteEmail(""); setInvitePassword("");
       reload();
-    } catch (err) {
-      toast.error((err as Error).message);
-    } finally { setInviting(false); }
+    } catch (err) { toast.error((err as Error).message); }
+    finally { setInviting(false); }
   };
 
   const onRemove = async (id: string) => {
     if (!confirm("Remove this staff member?")) return;
     try {
-      await removeStaffFn({ data: { staff_profile_id: id } });
+      await callAdmin("remove_staff", { staff_profile_id: id });
       toast.success("Removed");
       reload();
     } catch (err) { toast.error((err as Error).message); }
@@ -151,25 +138,17 @@ function SettingsPage() {
             </div>
           </div>
           <div className="mt-5 space-y-4">
-            <TemplateField id="tpla" label="1. When customer joins"
-              value={tplAdd} onChange={setTplAdd} business={name} />
-            <TemplateField id="tplf" label="2. When customer is first in queue"
-              value={tplFirst} onChange={setTplFirst} business={name} />
+            <TemplateField id="tpla" label="1. When customer joins" value={tplAdd} onChange={setTplAdd} business={name} />
+            <TemplateField id="tplf" label="2. When customer is first in queue" value={tplFirst} onChange={setTplFirst} business={name} />
             <div className="space-y-1.5">
               <Label htmlFor="hpos">Send heads-up SMS when customer reaches position:</Label>
-              <select
-                id="hpos"
-                value={headsupPos}
-                onChange={(e) => setHeadsupPos(Number(e.target.value))}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
+              <select id="hpos" value={headsupPos} onChange={(e) => setHeadsupPos(Number(e.target.value))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                 {[1,2,3,4,5].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
-            <TemplateField id="tplh" label={`3. Heads-up (auto-sent at position ${headsupPos})`}
-              value={tplHeadsup} onChange={setTplHeadsup} business={name} />
-            <TemplateField id="tplc" label="4. When customer is called"
-              value={tplCall} onChange={setTplCall} business={name} />
+            <TemplateField id="tplh" label={`3. Heads-up (auto-sent at position ${headsupPos})`} value={tplHeadsup} onChange={setTplHeadsup} business={name} />
+            <TemplateField id="tplc" label="4. When customer is called" value={tplCall} onChange={setTplCall} business={name} />
           </div>
         </section>
 
@@ -179,13 +158,9 @@ function SettingsPage() {
 
         <section className="bg-card border rounded-xl p-6">
           <h2 className="text-lg font-semibold">Staff</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Staff can only access the queue screens.
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">Staff can only access the queue screens.</p>
           <ul className="mt-4 divide-y border rounded-md">
-            {staff.length === 0 && (
-              <li className="p-4 text-sm text-muted-foreground">No staff yet.</li>
-            )}
+            {staff.length === 0 && (<li className="p-4 text-sm text-muted-foreground">No staff yet.</li>)}
             {staff.map((s) => (
               <li key={s.id} className="flex items-center justify-between p-3">
                 <div>
@@ -230,9 +205,7 @@ function SettingsPage() {
 function TemplateField({ id, label, value, onChange, business }: {
   id: string; label: string; value: string; onChange: (v: string) => void; business: string;
 }) {
-  const preview = fillTemplate(value, {
-    name: "Jean", position: 6, wait: 45, business: business || "your business",
-  });
+  const preview = fillTemplate(value, { name: "Jean", position: 6, wait: 45, business: business || "your business" });
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>

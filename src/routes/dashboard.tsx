@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
@@ -7,17 +7,8 @@ import { sectorLabel } from "@/lib/sectors";
 import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 
-export const Route = createFileRoute("/dashboard")({
-  component: Dashboard,
-  head: () => ({ meta: [{ title: "Dashboard — Possac" }] }),
-});
-
-interface Entry {
-  status: string; added_at: string; served_at: string | null;
-}
-interface RecentEntry {
-  status: string; added_at: string; served_at: string | null; queue_id: string;
-}
+interface Entry { status: string; added_at: string; served_at: string | null; }
+interface RecentEntry { status: string; added_at: string; served_at: string | null; queue_id: string; }
 interface QueueDay { id: string; date: string }
 
 const DEFAULT_TEMPLATES = {
@@ -27,24 +18,23 @@ const DEFAULT_TEMPLATES = {
   sms_template_first: "Hi {name}, you are next in line at {business}. Please come in now or let staff know you have arrived.",
 };
 
-function Dashboard() {
+export default function Dashboard() {
   const navigate = useNavigate();
   const { user, loading, businessId, businessName, sector, role } = useSession();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [recent, setRecent] = useState<RecentEntry[]>([]);
   const [recentQueues, setRecentQueues] = useState<QueueDay[]>([]);
   const [onboarding, setOnboarding] = useState<{
-    show: boolean;
-    smsCustomized: boolean;
-    hasStaff: boolean;
-    hasEntry: boolean;
+    show: boolean; smsCustomized: boolean; hasStaff: boolean; hasEntry: boolean;
   } | null>(null);
+
+  useEffect(() => { document.title = "Dashboard — Possac"; }, []);
 
   useEffect(() => {
     if (loading) return;
-    if (!user) navigate({ to: "/login" });
-    else if (role === "staff") navigate({ to: "/queue" });
-    else if (role === "superadmin") navigate({ to: "/superadmin" });
+    if (!user) navigate("/login");
+    else if (role === "staff") navigate("/queue");
+    else if (role === "superadmin") navigate("/superadmin");
   }, [user, loading, role, navigate]);
 
   useEffect(() => {
@@ -121,7 +111,6 @@ function Dashboard() {
   const waiting = entries.filter((e) => e.status === "waiting").length;
   const served = entries.filter((e) => e.status === "served").length;
   const noShow = entries.filter((e) => e.status === "no_show").length;
-
   const servedDurations = entries
     .filter((e) => e.status === "served" && e.served_at)
     .map((e) => (new Date(e.served_at!).getTime() - new Date(e.added_at).getTime()) / 60000);
@@ -129,8 +118,7 @@ function Dashboard() {
     ? Math.round(servedDurations.reduce((a, b) => a + b, 0) / servedDurations.length)
     : 0;
 
-  // Build hourly buckets
-  const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 7am - 8pm
+  const hours = Array.from({ length: 14 }, (_, i) => i + 7);
   const chartData = hours.map((h) => ({
     hour: `${h}:00`,
     count: entries.filter((e) => new Date(e.added_at).getHours() === h).length,
@@ -150,11 +138,8 @@ function Dashboard() {
       .map((e) => (new Date(e.served_at!).getTime() - new Date(e.added_at).getTime()) / 60000);
     const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
     return {
-      date,
-      total: dayEntries.length,
-      served: served.length,
-      noShow: dayEntries.filter((e) => e.status === "no_show").length,
-      avg,
+      date, total: dayEntries.length, served: served.length,
+      noShow: dayEntries.filter((e) => e.status === "no_show").length, avg,
     };
   });
 
@@ -190,11 +175,7 @@ function Dashboard() {
         <p className="text-sm text-muted-foreground">Today, {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
 
         {onboarding?.show && (
-          <OnboardingCard
-            smsCustomized={onboarding.smsCustomized}
-            hasStaff={onboarding.hasStaff}
-            hasEntry={onboarding.hasEntry}
-          />
+          <OnboardingCard smsCustomized={onboarding.smsCustomized} hasStaff={onboarding.hasStaff} hasEntry={onboarding.hasEntry} />
         )}
 
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
@@ -216,10 +197,8 @@ function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="hour" stroke="currentColor" fontSize={11} tickLine={false} axisLine={false} className="text-muted-foreground" />
                 <YAxis stroke="currentColor" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} className="text-muted-foreground" />
-                <Tooltip
-                  cursor={{ fill: "var(--accent)" }}
-                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-                />
+                <Tooltip cursor={{ fill: "var(--accent)" }}
+                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
                 <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -314,7 +293,7 @@ function OnboardingCard({ smsCustomized, hasStaff, hasEntry }: { smsCustomized: 
           );
           return (
             <li key={s.label}>
-              {s.to && !s.done ? <Link to={s.to as "/settings" | "/queue-add"}>{content}</Link> : content}
+              {s.to && !s.done ? <Link to={s.to}>{content}</Link> : content}
             </li>
           );
         })}

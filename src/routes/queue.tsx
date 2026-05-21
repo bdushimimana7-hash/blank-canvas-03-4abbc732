@@ -1,19 +1,13 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/useSession";
 import { sectorCopy } from "@/lib/sectors";
 import { fillTemplate } from "@/lib/format";
-import { sendSms } from "@/lib/sms.functions";
-import { useServerFn } from "@tanstack/react-start";
+import { sendSmsViaEdge } from "@/lib/edge-functions";
 import { Plus } from "lucide-react";
-
-export const Route = createFileRoute("/queue")({
-  component: LiveQueue,
-  head: () => ({ meta: [{ title: "Live queue — Possac" }] }),
-});
 
 interface Entry {
   id: string;
@@ -27,15 +21,13 @@ interface Entry {
   headsup_sent: boolean;
 }
 
-function LiveQueue() {
+export default function LiveQueue() {
   const navigate = useNavigate();
   const { user, loading, businessId, sector, businessName } = useSession();
   const [entries, setEntries] = useState<Entry[]>([]);
-  const sendSmsFn = useServerFn(sendSms);
 
-  useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login" });
-  }, [loading, user, navigate]);
+  useEffect(() => { document.title = "Live queue — Possac"; }, []);
+  useEffect(() => { if (!loading && !user) navigate("/login"); }, [loading, user, navigate]);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -81,7 +73,6 @@ function LiveQueue() {
     if (!waitingList || waitingList.length < headsupPos) return;
     const third = waitingList[headsupPos - 1];
     if (third.headsup_sent) return;
-    // Atomic claim: only the first call that flips false -> true gets to send.
     const { data: claimed } = await supabase
       .from("queue_entries")
       .update({ headsup_sent: true })
@@ -95,9 +86,8 @@ function LiveQueue() {
     const message = fillTemplate(biz.sms_template_headsup, {
       name: third.customer_name, position: headsupPos, wait: third.wait_minutes ?? 0, business: businessName ?? "",
     });
-    const r = await sendSmsFn({ data: { phone: third.customer_phone, message } }).catch(() => ({ success: false }));
+    const r = await sendSmsViaEdge(third.customer_phone, message);
     if (!r.success) {
-      // Revert the claim so a retry can fire later.
       await supabase.from("queue_entries").update({ headsup_sent: false }).eq("id", third.id);
     }
   };
@@ -114,7 +104,7 @@ function LiveQueue() {
         name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "",
       });
       toast.success(`Called ${e.customer_name}`);
-      sendSmsFn({ data: { phone: e.customer_phone, message } })
+      sendSmsViaEdge(e.customer_phone, message)
         .then((r) => { if (!r.success) toast.warning("Called. SMS failed — check Pindo settings."); })
         .catch(() => toast.warning("Called. SMS failed — check Pindo settings."));
     } else {
@@ -155,10 +145,7 @@ function LiveQueue() {
             <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Today's queue</div>
             <div className="text-sm font-medium truncate max-w-[180px]">{businessName ?? "—"}</div>
           </div>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="text-xs text-muted-foreground"
-          >Sign out</button>
+          <button onClick={() => supabase.auth.signOut()} className="text-xs text-muted-foreground">Sign out</button>
         </div>
         <div className="max-w-md mx-auto px-4 pb-3 grid grid-cols-3 gap-2">
           <SummaryStat label="Waiting" value={waiting} accent="text-info" />
@@ -193,16 +180,10 @@ function LiveQueue() {
                     {(e.status === "waiting" || e.status === "called") && (
                       <div className="mt-3 flex gap-2">
                         {e.status === "waiting" && (
-                          <Button size="sm" onClick={() => callEntry(e)} className="flex-1">
-                            Call
-                          </Button>
+                          <Button size="sm" onClick={() => callEntry(e)} className="flex-1">Call</Button>
                         )}
-                        <Button size="sm" variant="secondary" onClick={() => setStatus(e, "served")} className="flex-1">
-                          Served
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setStatus(e, "no_show")} className="flex-1">
-                          No show
-                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => setStatus(e, "served")} className="flex-1">Served</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setStatus(e, "no_show")} className="flex-1">No show</Button>
                       </div>
                     )}
                   </div>

@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,20 +7,16 @@ import { Label } from "@/components/ui/label";
 import { PossacLogo } from "@/components/Brand";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/reset-password")({
-  component: ResetPasswordPage,
-  head: () => ({ meta: [{ title: "Reset password — Possac" }] }),
-});
-
-function ResetPasswordPage() {
+export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [ready, setReady] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => { document.title = "Reset password — Possac"; }, []);
+
   useEffect(() => {
-    // Supabase auto-processes the recovery hash and fires onAuthStateChange.
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
     });
@@ -40,7 +36,7 @@ function ResetPasswordPage() {
     if (error) { toast.error(error.message); return; }
     toast.success("Password updated. Please sign in.");
     await supabase.auth.signOut();
-    navigate({ to: "/login" });
+    navigate("/login");
   };
 
   return (
