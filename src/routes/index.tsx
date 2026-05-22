@@ -175,17 +175,16 @@ function Landing() {
         </div>
       </section>
 
-      {/* CONTACT FORM */}
       <section className="border-t border-border/60">
         <div className="mx-auto max-w-xl px-5 py-20 sm:py-24">
           <p className="text-sm font-medium text-primary uppercase tracking-wider">
             Get in touch
           </p>
           <h2 className="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight">
-            We'd love to hear from you.
+            We&apos;d love to hear from you.
           </h2>
           <p className="mt-4 text-muted-foreground text-sm leading-relaxed max-w-md">
-            Have a question or want to set up Possac for your business? Send us a message and we'll get back to you.
+            Have a question or want to set up Possac for your business? Send us a message and we&apos;ll get back to you.
           </p>
           <form
             action="https://formspree.io/f/xbdbongl"
@@ -242,18 +241,16 @@ function Landing() {
           </form>
           <p className="text-center text-xs text-muted-foreground mt-6">
             Or email us at{" "}
-            <a href="mailto:hello.possac@gmail.com" className="underline hover:text-foreground transition-colors">
+            <a
+              href="mailto:hello.possac@gmail.com"
+              className="underline hover:text-foreground transition-colors"
+            >
               hello.possac@gmail.com
             </a>
           </p>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="border-t border-border/60">
-        <div className="mx-auto max-w-3xl px-5 py-24 sm:py-32 text-center">
-          <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight">
-            Ready to run a better queue?
       <section className="border-t border-border/60">
         <div className="mx-auto max-w-3xl px-5 py-24 sm:py-32 text-center">
           <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight">
