@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
@@ -7,7 +7,6 @@ import { sectorLabel } from "@/lib/sectors";
 import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import QRCode from "qrcode";
-import { useRef } from "react";
 
 interface Entry { status: string; added_at: string; served_at: string | null; }
 interface RecentEntry { status: string; added_at: string; served_at: string | null; queue_id: string; }
