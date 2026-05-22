@@ -6,6 +6,8 @@ import { PossacLogo } from "@/components/Brand";
 import { sectorLabel } from "@/lib/sectors";
 import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import QRCode from "qrcode";
+import { useRef } from "react";
 
 interface Entry { status: string; added_at: string; served_at: string | null; }
 interface RecentEntry { status: string; added_at: string; served_at: string | null; queue_id: string; }
@@ -235,6 +237,8 @@ export default function Dashboard() {
             </table>
           </div>
         </div>
+
+        {businessId && <ShareQueueCard businessId={businessId} businessName={businessName ?? "queue"} />}
       </main>
     </div>
   );
