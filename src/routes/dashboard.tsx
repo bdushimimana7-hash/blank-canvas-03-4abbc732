@@ -305,3 +305,54 @@ function OnboardingCard({ smsCustomized, hasStaff, hasEntry }: { smsCustomized: 
     </div>
   );
 }
+
+function ShareQueueCard({ businessId, businessName }: { businessId: string; businessName: string }) {
+  const previewRef = useRef<HTMLCanvasElement | null>(null);
+  const url = `${window.location.origin}/join/${businessId}`;
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!previewRef.current) return;
+    QRCode.toCanvas(previewRef.current, url, { width: 192, margin: 1, color: { dark: "#000000", light: "#ffffff" } });
+  }, [url]);
+
+  const download = async () => {
+    const dataUrl = await QRCode.toDataURL(url, { width: 1000, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    const safe = businessName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "queue";
+    a.download = `possac-qr-${safe}.png`;
+    document.body.appendChild(a); a.click(); a.remove();
+  };
+
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ }
+  };
+
+  return (
+    <div className="mt-6 bg-card border rounded-xl p-5">
+      <div className="flex items-baseline justify-between mb-1">
+        <h2 className="text-base font-semibold">Share your queue</h2>
+        <span className="text-xs text-muted-foreground">Customers can join in seconds</span>
+      </div>
+      <p className="text-sm text-muted-foreground mb-5">Print this QR and place it at your entrance. Anyone who scans it can join the queue from their phone — no app needed.</p>
+      <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+        <div className="shrink-0 bg-white p-3 rounded-lg border">
+          <canvas ref={previewRef} className="block" />
+        </div>
+        <div className="flex-1 w-full">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Join link</div>
+          <div className="mt-1 rounded-md border bg-background px-3 py-2 text-sm break-all font-mono">{url}</div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button onClick={download} className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-medium px-4 h-9 hover:bg-primary/90 transition-colors">
+              Download QR as PNG
+            </button>
+            <button onClick={copy} className="inline-flex items-center justify-center rounded-md border bg-background text-sm font-medium px-4 h-9 hover:bg-accent transition-colors">
+              {copied ? "Copied" : "Copy link"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
