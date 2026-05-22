@@ -56,8 +56,9 @@ function Landing() {
           Stop losing customers to long lines.
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-2xl leading-relaxed">
-          A simple queue system for busy businesses. Your staff adds customers, they wait
-          from wherever they want, and come back only when it&apos;s their turn.
+          Possac gives your business a virtual queue. Customers join by scanning a QR code
+          or staff adds them in seconds. They wait from anywhere and come back only when
+          it&apos;s their turn.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-4">
           <Button asChild size="lg">
@@ -87,10 +88,10 @@ function Landing() {
           </div>
           <ol className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { t: "Create your account", d: "Sign up and set up your business in under 2 minutes." },
-              { t: "Add customers to the queue", d: "Your receptionist adds a name and phone number. That's it." },
-              { t: "They wait from anywhere", d: "The customer gets an SMS with their position and estimated wait. They can leave and come back." },
-              { t: "Call them when ready", d: "One tap sends \"It's your turn.\" No crowded waiting rooms." },
+              { t: "Create your account", d: "Sign up and customize your SMS messages in under 2 minutes." },
+              { t: "Place your QR code", d: "Print and stick the QR code at your entrance. Customers scan to join instantly. No app needed." },
+              { t: "Customers wait from anywhere", d: "They see their position and estimated wait on their phone. They leave, run errands, and come back when it's time." },
+              { t: "Call them when ready", d: "One tap on your dashboard sends an SMS: it's your turn. No crowded waiting room." },
             ].map((s, i) => (
               <li key={i} className="relative">
                 <div className="text-sm font-mono text-primary">0{i + 1}</div>
@@ -99,6 +100,29 @@ function Landing() {
               </li>
             ))}
           </ol>
+        </div>
+      </section>
+
+      <section className="border-t border-border/60">
+        <div className="mx-auto max-w-6xl px-5 py-20 sm:py-24">
+          <div className="max-w-2xl">
+            <p className="text-sm font-medium text-primary uppercase tracking-wider">Two ways in</p>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight">
+              Two ways to join the queue
+            </h2>
+          </div>
+          <div className="mt-12 grid gap-6 md:grid-cols-2">
+            {[
+              { t: "Scan the QR code", d: "Customer scans the QR at the entrance, enters their name, and joins instantly from their phone. No app download. No account needed." },
+              { t: "Staff adds them", d: "Receptionist enters name and number in seconds. Works for walk-ins, phone bookings, or customers without smartphones." },
+            ].map((c) => (
+              <div key={c.t} className="rounded-xl border border-border bg-card p-6">
+                <h3 className="text-lg font-semibold text-foreground">{c.t}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{c.d}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-sm text-muted-foreground">Both methods work together in the same queue.</p>
         </div>
       </section>
 
