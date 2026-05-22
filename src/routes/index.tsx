@@ -175,6 +175,85 @@ function Landing() {
         </div>
       </section>
 
+      {/* CONTACT FORM */}
+      <section className="border-t border-border/60">
+        <div className="mx-auto max-w-xl px-5 py-20 sm:py-24">
+          <p className="text-sm font-medium text-primary uppercase tracking-wider">
+            Get in touch
+          </p>
+          <h2 className="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight">
+            We'd love to hear from you.
+          </h2>
+          <p className="mt-4 text-muted-foreground text-sm leading-relaxed max-w-md">
+            Have a question or want to set up Possac for your business? Send us a message and we'll get back to you.
+          </p>
+          <form
+            action="https://formspree.io/f/xbdbongl"
+            method="POST"
+            className="mt-10 flex flex-col gap-5"
+          >
+            <input type="hidden" name="_subject" value="New Possac enquiry" />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Full name</label>
+              <input
+                type="text"
+                name="name"
+                required
+                placeholder="Your name"
+                className="border border-border rounded-lg px-4 py-3 text-sm bg-background outline-none focus:border-primary transition-colors"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Email address</label>
+              <input
+                type="email"
+                name="email"
+                required
+                placeholder="your@email.com"
+                className="border border-border rounded-lg px-4 py-3 text-sm bg-background outline-none focus:border-primary transition-colors"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Subject</label>
+              <input
+                type="text"
+                name="subject"
+                required
+                placeholder="What is this about?"
+                className="border border-border rounded-lg px-4 py-3 text-sm bg-background outline-none focus:border-primary transition-colors"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Message</label>
+              <textarea
+                name="message"
+                required
+                rows={4}
+                placeholder="Tell us more..."
+                className="border border-border rounded-lg px-4 py-3 text-sm bg-background outline-none focus:border-primary transition-colors resize-none"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full bg-primary text-primary-foreground py-3 rounded-full font-medium text-sm hover:opacity-90 transition-opacity"
+            >
+              Send message
+            </button>
+          </form>
+          <p className="text-center text-xs text-muted-foreground mt-6">
+            Or email us at{" "}
+            <a href="mailto:hello.possac@gmail.com" className="underline hover:text-foreground transition-colors">
+              hello.possac@gmail.com
+            </a>
+          </p>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="border-t border-border/60">
+        <div className="mx-auto max-w-3xl px-5 py-24 sm:py-32 text-center">
+          <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight">
+            Ready to run a better queue?
       <section className="border-t border-border/60">
         <div className="mx-auto max-w-3xl px-5 py-24 sm:py-32 text-center">
           <h2 className="text-3xl sm:text-5xl font-semibold tracking-tight">
