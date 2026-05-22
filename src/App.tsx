@@ -12,6 +12,8 @@ import LiveQueue from "./routes/queue";
 import AddToQueue from "./routes/queue-add";
 import SettingsPage from "./routes/settings";
 import SuperAdmin from "./routes/superadmin";
+import JoinPage from "./routes/join";
+import StatusPage from "./routes/status";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +55,8 @@ export default function App() {
           <Route path="/queue-add" element={<AddToQueue />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/superadmin" element={<SuperAdmin />} />
+          <Route path="/join/:businessId" element={<JoinPage />} />
+          <Route path="/status/:entryId" element={<StatusPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
