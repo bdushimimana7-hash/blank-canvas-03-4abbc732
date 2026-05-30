@@ -113,7 +113,7 @@ function Landing() {
           </div>
           <div className="mt-12 grid gap-6 md:grid-cols-2">
             {[
-              { t: "Scan the QR code", d: "Customer scans the QR at the entrance, enters their name, and joins instantly from their phone. No app download. No account needed." },
+              { t: "Scan the QR code", d: "Customer scans the QR at the entrance, enters their name, and joins instantly from their phone. No app download. No account needed. No phone number required." },
               { t: "Staff adds them", d: "Receptionist enters name and number in seconds. Works for walk-ins, phone bookings, or customers without smartphones." },
             ].map((c) => (
               <div key={c.t} className="rounded-xl border border-border bg-card p-6">
@@ -273,8 +273,25 @@ function Landing() {
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
             <Link to="/login" className="hover:text-foreground transition-colors">Sign in</Link>
             <Link to="/signup" className="hover:text-foreground transition-colors">Sign up</Link>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
           </nav>
-          <p className="text-sm text-muted-foreground">© 2026 Possac.</p>
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-muted-foreground">© 2026 Possac.</p>
+            <a
+              href="https://launchllama.co?utm_source=badge&utm_medium=referral"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://speaktechenglish.com/wp-content/uploads/2026/04/Screenshot_2026-04-09_at_17.40.44-removebg-preview.png"
+                alt="Featured on Launch Llama"
+                width="120"
+                height="30"
+                style={{ opacity: 0.8 }}
+              />
+            </a>
+          </div>
         </div>
       </footer>
     </div>
