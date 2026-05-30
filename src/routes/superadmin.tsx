@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
@@ -8,30 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SECTORS, sectorLabel } from "@/lib/sectors";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
-import { createBusinessOwner, setBusinessActive } from "@/lib/admin.functions";
-
-export const Route = createFileRoute("/superadmin")({
-  component: SuperAdmin,
-  head: () => ({ meta: [{ title: "Superadmin — Possac" }] }),
-});
+import { callAdmin } from "@/lib/edge-functions";
 
 interface BizRow {
   id: string; name: string; sector: string; active: boolean;
-  created_at: string; owner_id: string | null;
-  ownerEmail?: string | null;
+  created_at: string;
+  owner_email: string | null;
+  total_served: number;
   entriesToday?: number;
 }
 
-function SuperAdmin() {
+export default function SuperAdmin() {
   const navigate = useNavigate();
   const { user, loading, role } = useSession();
   const [businesses, setBusinesses] = useState<BizRow[]>([]);
   const [smsToday, setSmsToday] = useState(0);
   const [entriesToday, setEntriesToday] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
-
-  // Create owner form
   const [bn, setBn] = useState("");
   const [bs, setBs] = useState("other");
   const [on, setOn] = useState("");
@@ -39,27 +32,29 @@ function SuperAdmin() {
   const [op, setOp] = useState("");
   const [creating, setCreating] = useState(false);
 
-  const createFn = useServerFn(createBusinessOwner);
-  const toggleFn = useServerFn(setBusinessActive);
-
+  useEffect(() => { document.title = "Superadmin — Possac"; }, []);
   useEffect(() => {
     if (loading) return;
-    if (!user) navigate({ to: "/login" });
+    if (!user) navigate("/login");
     else if (role !== "superadmin") {
-      if (role === "owner") navigate({ to: "/dashboard" });
-      else if (role === "staff") navigate({ to: "/queue" });
+      if (role === "owner") navigate("/dashboard");
+      else if (role === "staff") navigate("/queue");
     }
   }, [user, role, loading, navigate]);
 
   const reload = async () => {
-    const { data: biz } = await supabase
-      .from("businesses")
-      .select("id, name, sector, active, created_at, owner_id")
-      .order("created_at", { ascending: false });
+    let baseRows: BizRow[] = [];
+    try {
+      const res = await callAdmin<{ businesses: BizRow[] }>("list_businesses_admin");
+      baseRows = res.businesses;
+    } catch (err) {
+      toast.error((err as Error).message);
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     const rows: BizRow[] = [];
     let totalEntries = 0;
-    for (const b of biz ?? []) {
+    for (const b of baseRows) {
       const { data: q } = await supabase
         .from("queues").select("id").eq("business_id", b.id).eq("date", today).maybeSingle();
       let count = 0;
@@ -73,8 +68,6 @@ function SuperAdmin() {
     }
     setBusinesses(rows);
     setEntriesToday(totalEntries);
-    // SMS sent today ~= called + added entries (approximation since we don't log SMS)
-    // Count entries added today + entries called today
     const { count: addedCount } = await supabase
       .from("queue_entries").select("id", { count: "exact", head: true })
       .gte("added_at", today + "T00:00:00");
@@ -86,13 +79,16 @@ function SuperAdmin() {
 
   useEffect(() => {
     if (role === "superadmin") reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
     try {
-      await createFn({ data: { business_name: bn, sector: bs, owner_name: on, owner_email: oe, password: op }});
+      await callAdmin("create_business_owner", {
+        business_name: bn, sector: bs, owner_name: on, owner_email: oe, password: op,
+      });
       toast.success("Business + owner created");
       setBn(""); setBs("other"); setOn(""); setOe(""); setOp("");
       setShowCreate(false);
@@ -103,7 +99,7 @@ function SuperAdmin() {
 
   const toggle = async (b: BizRow) => {
     try {
-      await toggleFn({ data: { business_id: b.id, active: !b.active } });
+      await callAdmin("set_business_active", { business_id: b.id, active: !b.active });
       reload();
     } catch (err) { toast.error((err as Error).message); }
   };
@@ -175,23 +171,27 @@ function SuperAdmin() {
             <thead className="bg-muted/50 text-muted-foreground">
               <tr>
                 <th className="text-left font-medium p-3">Name</th>
+                <th className="text-left font-medium p-3">Owner email</th>
                 <th className="text-left font-medium p-3">Sector</th>
-                <th className="text-left font-medium p-3">Created</th>
+                <th className="text-left font-medium p-3">Joined</th>
                 <th className="text-right font-medium p-3">Today</th>
+                <th className="text-right font-medium p-3">Total served</th>
                 <th className="text-left font-medium p-3">Status</th>
                 <th className="text-right font-medium p-3"></th>
               </tr>
             </thead>
             <tbody>
               {businesses.length === 0 && (
-                <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No businesses yet.</td></tr>
+                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">No businesses yet.</td></tr>
               )}
               {businesses.map((b) => (
                 <tr key={b.id} className="border-t">
                   <td className="p-3 font-medium">{b.name}</td>
+                  <td className="p-3 text-muted-foreground">{b.owner_email ?? "—"}</td>
                   <td className="p-3 text-muted-foreground">{sectorLabel(b.sector)}</td>
                   <td className="p-3 text-muted-foreground">{new Date(b.created_at).toLocaleDateString()}</td>
                   <td className="p-3 text-right tabular-nums">{b.entriesToday ?? 0}</td>
+                  <td className="p-3 text-right tabular-nums">{b.total_served}</td>
                   <td className="p-3">
                     <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded border ${b.active ? "bg-success/10 text-success border-success/20" : "bg-muted text-muted-foreground border-border"}`}>
                       {b.active ? "Active" : "Inactive"}

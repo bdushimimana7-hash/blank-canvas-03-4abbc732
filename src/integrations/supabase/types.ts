@@ -18,34 +18,43 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          headsup_position: number
           id: string
           name: string
+          onboarding_complete: boolean
           owner_id: string | null
           sector: string
           sms_template_add: string
           sms_template_call: string
+          sms_template_first: string
           sms_template_headsup: string
         }
         Insert: {
           active?: boolean
           created_at?: string
+          headsup_position?: number
           id?: string
           name: string
+          onboarding_complete?: boolean
           owner_id?: string | null
           sector?: string
           sms_template_add?: string
           sms_template_call?: string
+          sms_template_first?: string
           sms_template_headsup?: string
         }
         Update: {
           active?: boolean
           created_at?: string
+          headsup_position?: number
           id?: string
           name?: string
+          onboarding_complete?: boolean
           owner_id?: string | null
           sector?: string
           sms_template_add?: string
           sms_template_call?: string
+          sms_template_first?: string
           sms_template_headsup?: string
         }
         Relationships: []
@@ -211,7 +220,6 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
-      user_business_ids: { Args: { _user_id: string }; Returns: string[] }
       user_can_access_business: {
         Args: { _business_id: string; _user_id: string }
         Returns: boolean

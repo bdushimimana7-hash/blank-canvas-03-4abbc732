@@ -1,30 +1,26 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { bootstrapSuperadmin, superadminExists } from "@/lib/setup.functions";
+import { useNavigate } from "react-router-dom";
+import { callSignup } from "@/lib/edge-functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PossacLogo } from "@/components/Brand";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/setup")({
-  component: SetupPage,
-  head: () => ({ meta: [{ title: "Setup — Possac" }] }),
-});
-
-function SetupPage() {
+export default function SetupPage() {
   const navigate = useNavigate();
-  const checkFn = useServerFn(superadminExists);
-  const createFn = useServerFn(bootstrapSuperadmin);
   const [available, setAvailable] = useState<boolean | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => { document.title = "Setup — Possac"; }, []);
+
   useEffect(() => {
-    checkFn({}).then((r) => setAvailable(!r.exists)).catch(() => setAvailable(false));
-  }, [checkFn]);
+    callSignup<{ exists: boolean }>("superadmin_exists")
+      .then((r) => setAvailable(!r.exists))
+      .catch(() => setAvailable(false));
+  }, []);
 
   if (available === null) {
     return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Checking…</div>;
@@ -35,7 +31,7 @@ function SetupPage() {
         <div className="text-center">
           <PossacLogo className="mx-auto mb-4" />
           <p className="text-sm text-muted-foreground">Setup is already complete.</p>
-          <button onClick={() => navigate({ to: "/login" })} className="mt-4 text-sm text-primary font-medium">Go to sign in →</button>
+          <button onClick={() => navigate("/login")} className="mt-4 text-sm text-primary font-medium">Go to sign in →</button>
         </div>
       </div>
     );
@@ -45,9 +41,9 @@ function SetupPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      await createFn({ data: { email, password }});
+      await callSignup("bootstrap_superadmin", { email, password });
       toast.success("Superadmin created. You can now sign in.");
-      navigate({ to: "/login" });
+      navigate("/login");
     } catch (err) { toast.error((err as Error).message); }
     finally { setBusy(false); }
   };

@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,16 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { PossacLogo } from "@/components/Brand";
 import { SECTORS } from "@/lib/sectors";
 import { fillTemplate } from "@/lib/format";
-import { signupOwner } from "@/lib/signup.functions";
-import { useServerFn } from "@tanstack/react-start";
+import { callSignup } from "@/lib/edge-functions";
 import { useSession } from "@/hooks/useSession";
 import { toast } from "sonner";
 import { ArrowLeft, Check } from "lucide-react";
-
-export const Route = createFileRoute("/signup")({
-  component: SignupPage,
-  head: () => ({ meta: [{ title: "Create your account — Possac" }] }),
-});
 
 const DEFAULT_ADD =
   "Hi {name}, you are number {position} in the queue at {business}. Estimated wait: {wait} minutes. We will alert you when you are close.";
@@ -26,30 +20,28 @@ const DEFAULT_HEADSUP =
 const DEFAULT_CALL =
   "Hi {name}, it is your turn at {business}. Please come in now.";
 
-function SignupPage() {
+export default function SignupPage() {
   const navigate = useNavigate();
   const { user, role, loading } = useSession();
-  const signupFn = useServerFn(signupOwner);
-
   const [step, setStep] = useState<1 | 2>(1);
   const [submitting, setSubmitting] = useState(false);
-
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [sector, setSector] = useState("other");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-
   const [tplAdd, setTplAdd] = useState(DEFAULT_ADD);
   const [tplHeadsup, setTplHeadsup] = useState(DEFAULT_HEADSUP);
   const [tplCall, setTplCall] = useState(DEFAULT_CALL);
 
+  useEffect(() => { document.title = "Create your account — Possac"; }, []);
+
   useEffect(() => {
     if (loading || !user) return;
-    if (role === "superadmin") navigate({ to: "/superadmin" });
-    else if (role === "owner") navigate({ to: "/dashboard" });
-    else if (role === "staff") navigate({ to: "/queue" });
+    if (role === "superadmin") navigate("/superadmin");
+    else if (role === "owner") navigate("/dashboard");
+    else if (role === "staff") navigate("/queue");
   }, [user, role, loading, navigate]);
 
   const previewVars = useMemo(
@@ -68,27 +60,25 @@ function SignupPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await signupFn({
-        data: {
-          full_name: fullName.trim(),
-          business_name: businessName.trim(),
-          sector,
-          email: email.trim(),
-          password,
-          sms_template_add: tplAdd,
-          sms_template_headsup: tplHeadsup,
-          sms_template_call: tplCall,
-        },
+      await callSignup("signup_owner", {
+        full_name: fullName.trim(),
+        business_name: businessName.trim(),
+        sector,
+        email: email.trim(),
+        password,
+        sms_template_add: tplAdd,
+        sms_template_headsup: tplHeadsup,
+        sms_template_call: tplCall,
       });
       const { error: signInErr } = await supabase.auth.signInWithPassword({
         email: email.trim(), password,
       });
       if (signInErr) {
         toast.success("Account created. Please sign in.");
-        navigate({ to: "/login" });
+        navigate("/login");
       } else {
         toast.success("Welcome to Possac");
-        navigate({ to: "/dashboard" });
+        navigate("/dashboard");
       }
     } catch (err) {
       toast.error((err as Error).message);
@@ -108,7 +98,7 @@ function SignupPage() {
               {step === 1 ? "Create your account" : "Customize your SMS messages"}
             </h1>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <StepDot active={step >= 1} done={step > 1} /> 
+              <StepDot active={step >= 1} done={step > 1} />
               <span className="w-6 h-px bg-border" />
               <StepDot active={step >= 2} done={false} />
             </div>

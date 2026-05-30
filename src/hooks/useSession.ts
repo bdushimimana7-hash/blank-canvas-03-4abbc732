@@ -32,31 +32,60 @@ export function useSession(): SessionInfo {
       }
       // Defer to avoid deadlock with onAuthStateChange
       setTimeout(async () => {
-        const { data: roles } = await supabase
-          .from("user_roles").select("role").eq("user_id", u.id);
-        let r: AppRole = null;
-        if (roles?.some((x) => x.role === "superadmin")) r = "superadmin";
-        else if (roles?.some((x) => x.role === "owner")) r = "owner";
-        else if (roles?.some((x) => x.role === "staff")) r = "staff";
-        if (!mounted) return;
-        setRole(r);
+        try {
+          setRole(null);
+          setBusinessId(null);
+          setBusinessName(null);
+          setSector(null);
 
-        if (r === "owner" || r === "staff") {
-          const { data: sp } = await supabase
+          const { data: sp, error: profileError } = await supabase
             .from("staff_profiles")
-            .select("business_id, businesses(name, sector)")
+            .select("business_id, role")
             .eq("user_id", u.id)
             .limit(1)
             .maybeSingle();
+
+          if (profileError) {
+            console.error("[useSession] Failed to load staff profile", profileError);
+          }
+
+          let resolvedRole: AppRole = null;
+
+          if (sp?.role === "owner" || sp?.role === "staff" || sp?.role === "superadmin") {
+            resolvedRole = sp.role;
+          } else {
+            const { data: superadmin, error: superadminError } = await supabase.rpc("is_superadmin", {
+              _user_id: u.id,
+            });
+            if (superadminError) {
+              console.error("[useSession] Failed to resolve superadmin role", superadminError);
+            } else if (superadmin) {
+              resolvedRole = "superadmin";
+            }
+          }
+
           if (!mounted) return;
-          if (sp) {
+          setRole(resolvedRole);
+
+          if (sp?.business_id) {
             setBusinessId(sp.business_id);
-            const biz = sp.businesses as { name?: string; sector?: string } | null;
+            const { data: biz, error: businessError } = await supabase
+              .from("businesses")
+              .select("name, sector")
+              .eq("id", sp.business_id)
+              .maybeSingle();
+
+            if (businessError) {
+              console.error("[useSession] Failed to load business", businessError);
+            }
+
+            if (!mounted) return;
             setBusinessName(biz?.name ?? null);
             setSector(biz?.sector ?? null);
           }
+        } finally {
+          if (mounted) setLoading(false);
         }
-        if (mounted) setLoading(false);
       }, 0);
     };
 
