@@ -21,7 +21,28 @@ export default function IndexPage() {
   return <Landing />;
 }
 
-/* ─── TICKER ─────────────────────────────────────────────── */
+/* ── Scroll animation hook ── */
+function useScrollReveal() {
+  useEffect(() => {
+    const els = document.querySelectorAll(".reveal");
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            (e.target as HTMLElement).style.opacity = "1";
+            (e.target as HTMLElement).style.transform = "translateY(0)";
+            obs.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.12 }
+    );
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, []);
+}
+
+/* ── Ticker ── */
 const TICKER_ITEMS = [
   "Virtual queue", "SMS notifications", "QR code joining", "Zero apps needed",
   "Real-time updates", "Staff dashboard", "Automatic alerts", "Rwanda-built",
@@ -29,46 +50,51 @@ const TICKER_ITEMS = [
   "Real-time updates", "Staff dashboard", "Automatic alerts", "Rwanda-built",
 ];
 
-/* ─── MAIN LANDING ────────────────────────────────────────── */
+/* ── Sector icons ── */
+const SECTOR_ICONS: Record<string, string> = {
+  "Salons & Barbershops":  "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+  "Pharmacies":            "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  "Banks & SACCOs":        "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+  "Government offices":    "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+  "Insurance companies":   "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  "Restaurants & cafés":   "M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z",
+};
+
+/* ── Main ── */
 function Landing() {
+  useScrollReveal();
+
   return (
     <div className="grain min-h-screen bg-[#F7F5F0] overflow-x-hidden">
 
-      {/* ── NAV ── */}
-      <nav className="fixed top-0 left-0 right-0 z-50">
-        <div className="mx-auto max-w-6xl px-5 pt-4">
-          <div className="flex items-center justify-between bg-white/80 backdrop-blur-xl border border-[#DDD9D0] rounded-2xl px-5 h-14 shadow-sm">
-            <PossacLogo />
-            <div className="hidden sm:flex items-center gap-6 text-sm text-[#7A7A72]">
-              <a href="#how" className="hover:text-[#0E0E0C] transition-colors">How it works</a>
-              <a href="#sms" className="hover:text-[#0E0E0C] transition-colors">SMS</a>
-              <a href="#sectors" className="hover:text-[#0E0E0C] transition-colors">Who it's for</a>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link to="/login" className="text-sm text-[#7A7A72] hover:text-[#0E0E0C] transition-colors px-3 py-1.5 hidden sm:block">
-                Sign in
-              </Link>
-              <Link to="/signup" className="btn-press text-sm font-medium bg-[#0E0E0C] text-white px-4 py-2 rounded-xl hover:bg-[#1a1a16] transition-colors">
-                Start free →
-              </Link>
-            </div>
+      {/* ── NAV — full-width, flush, bottom border ── */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#F7F5F0]/95 backdrop-blur-xl border-b border-[#DDD9D0]">
+        <div className="mx-auto max-w-6xl px-5 h-14 flex items-center justify-between">
+          <PossacLogo />
+          <div className="hidden sm:flex items-center gap-6 text-sm text-[#7A7A72]">
+            <a href="#how" className="hover:text-[#0E0E0C] transition-colors">How it works</a>
+            <a href="#sms" className="hover:text-[#0E0E0C] transition-colors">SMS</a>
+            <a href="#sectors" className="hover:text-[#0E0E0C] transition-colors">Who it's for</a>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/login" className="text-sm text-[#7A7A72] hover:text-[#0E0E0C] transition-colors px-3 py-1.5 hidden sm:block">
+              Sign in
+            </Link>
+            <Link to="/signup" className="btn-press text-sm font-medium bg-[#0E0E0C] text-white px-4 py-2 rounded-xl hover:bg-[#1a1a16] transition-colors">
+              Start free →
+            </Link>
           </div>
         </div>
       </nav>
 
       {/* ── HERO ── */}
       <section className="relative min-h-screen flex flex-col justify-center pt-28 pb-20 px-5">
-        {/* Background accent */}
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#0F6E56]/6 blur-[100px] pointer-events-none" />
-
         <div className="relative mx-auto max-w-6xl w-full">
-          {/* Eyebrow */}
           <div className="animate-fade-up inline-flex items-center gap-2.5 bg-white border border-[#DDD9D0] rounded-full px-4 py-1.5 text-xs text-[#7A7A72] mb-8 shadow-sm">
             <span className="relative h-2 w-2 pulse-dot rounded-full bg-[#0F6E56]" />
             Live in Rwanda · Free to start
           </div>
-
-          {/* Headline */}
           <h1
             className="animate-fade-up delay-100 font-display text-[clamp(52px,8vw,96px)] font-800 leading-[0.95] tracking-[-0.03em] text-[#0E0E0C] max-w-4xl"
             style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}
@@ -77,11 +103,9 @@ function Landing() {
             <span className="text-[#0F6E56]">deserve better</span><br />
             than waiting.
           </h1>
-
           <p className="animate-fade-up delay-200 mt-7 text-[18px] text-[#7A7A72] max-w-lg leading-relaxed font-light">
             Possac gives any business a virtual queue in minutes. Customers scan a QR, wait from anywhere, and come back only when it's their turn.
           </p>
-
           <div className="animate-fade-up delay-300 mt-9 flex flex-wrap items-center gap-3">
             <Link to="/signup" className="btn-press inline-flex items-center gap-2 bg-[#0F6E56] text-white text-[15px] font-medium px-7 py-3.5 rounded-xl hover:bg-[#0a5a44] transition-colors shadow-lg shadow-[#0F6E56]/25">
               Get started — it's free
@@ -91,8 +115,6 @@ function Landing() {
               Sign in
             </Link>
           </div>
-
-          {/* Stat pills */}
           <div className="animate-fade-up delay-400 mt-12 flex flex-wrap gap-3">
             {[
               { v: "< 2 min", l: "to set up" },
@@ -107,8 +129,6 @@ function Landing() {
             ))}
           </div>
         </div>
-
-        {/* Scroll hint */}
         <div className="animate-fade-in delay-500 absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
           <span className="text-xs text-[#7A7A72] tracking-widest uppercase">Scroll</span>
           <div className="h-8 w-px bg-gradient-to-b from-[#7A7A72] to-transparent" />
@@ -130,34 +150,31 @@ function Landing() {
       {/* ── HOW IT WORKS ── */}
       <section id="how" className="py-24 sm:py-32 px-5">
         <div className="mx-auto max-w-6xl">
-          <div className="flex items-end justify-between mb-16 flex-wrap gap-6">
-            <div>
-              <p className="text-xs font-medium text-[#0F6E56] uppercase tracking-[0.2em] mb-3">Process</p>
-              <h2
-                className="font-display text-[clamp(36px,5vw,60px)] font-700 leading-[1.0] tracking-tight text-[#0E0E0C]"
-                style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}
-              >
-                Up and running<br />in four steps.
-              </h2>
+          <div className="reveal" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1)" }}>
+            <div className="flex items-end justify-between mb-16 flex-wrap gap-6">
+              <div>
+                <p className="text-xs font-medium text-[#0F6E56] uppercase tracking-[0.2em] mb-3">Process</p>
+                <h2 className="font-display text-[clamp(36px,5vw,60px)] font-700 leading-[1.0] tracking-tight text-[#0E0E0C]"
+                  style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
+                  Up and running<br />in four steps.
+                </h2>
+              </div>
+              <Link to="/signup" className="text-sm text-[#0F6E56] hover:underline">Create your account →</Link>
             </div>
-            <Link to="/signup" className="text-sm text-[#0F6E56] hover:underline">
-              Create your account →
-            </Link>
           </div>
-
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { n: "01", t: "Create account", d: "Sign up in 2 minutes. Pick your business type and customize your SMS messages. Queue is live immediately.", icon: "M12 4v16m8-8H4" },
-              { n: "02", t: "Place QR code", d: "Download and print your unique QR code. Stick it at your entrance. That's the only hardware you need.", icon: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17 17h.01M14 14h.01M20 14h.01M14 20h.01M20 20h.01M17 14v.01M14 17v.01M20 17v.01M17 20v.01" },
-              { n: "03", t: "Customers join", d: "They scan the QR from their phone, enter their name, and join instantly. No app, no account needed.", icon: "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" },
-              { n: "04", t: "Call when ready", d: "One tap on your dashboard sends an SMS. They come back exactly when it's their turn. No crowding.", icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" },
-            ].map((s, i) => (
-              <div key={s.n} className="card-hover group bg-white border border-[#DDD9D0] rounded-2xl p-6 cursor-default">
+              { n: "01", t: "Create account", d: "Sign up in 2 minutes. Pick your business type and customize your SMS messages. Queue is live immediately.", icon: "M12 4v16m8-8H4", delay: 0 },
+              { n: "02", t: "Place QR code", d: "Download and print your unique QR code. Stick it at your entrance. That's the only hardware you need.", icon: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM17 17h.01M14 14h.01M20 14h.01M14 20h.01M20 20h.01M17 14v.01M14 17v.01M20 17v.01M17 20v.01", delay: 80 },
+              { n: "03", t: "Customers join", d: "They scan the QR from their phone, enter their name, and join instantly. No app, no account needed.", icon: "M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z", delay: 160 },
+              { n: "04", t: "Call when ready", d: "One tap on your dashboard sends an SMS. They come back exactly when it's their turn. No crowding.", icon: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9", delay: 240 },
+            ].map((s) => (
+              <div key={s.n}
+                className="reveal card-hover group bg-white border border-[#DDD9D0] rounded-2xl p-6 cursor-default"
+                style={{ opacity: 0, transform: "translateY(24px)", transition: `opacity 0.6s ease ${s.delay}ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${s.delay}ms` }}>
                 <div className="flex items-start justify-between mb-5">
-                  <span
-                    className="font-display text-4xl font-800 text-[#ECEAE4]"
-                    style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}
-                  >{s.n}</span>
+                  <span className="font-display text-4xl font-800 text-[#ECEAE4]"
+                    style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>{s.n}</span>
                   <div className="h-9 w-9 rounded-xl bg-[#F7F5F0] flex items-center justify-center group-hover:bg-[#E8F5F1] transition-colors">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d={s.icon} />
@@ -175,53 +192,47 @@ function Landing() {
       {/* ── TWO WAYS ── */}
       <section className="py-24 sm:py-32 px-5 bg-[#0E0E0C]">
         <div className="mx-auto max-w-6xl">
-          <p className="text-xs font-medium text-[#2DD4A0] uppercase tracking-[0.2em] mb-3">Flexibility</p>
-          <h2
-            className="font-display text-[clamp(36px,5vw,60px)] font-700 leading-[1.0] tracking-tight text-white mb-16"
-            style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}
-          >
-            Two ways in.<br />One live queue.
-          </h2>
-
+          <div className="reveal" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1)" }}>
+            <p className="text-xs font-medium text-[#2DD4A0] uppercase tracking-[0.2em] mb-3">Flexibility</p>
+            <h2 className="font-display text-[clamp(36px,5vw,60px)] font-700 leading-[1.0] tracking-tight text-white mb-16"
+              style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
+              Two ways in.<br />One live queue.
+            </h2>
+          </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-8 hover:bg-white/8 transition-colors">
-              <div className="h-12 w-12 rounded-2xl bg-[#0F6E56]/20 flex items-center justify-center mb-6">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2DD4A0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                  <path d="M14 14h.01M14 17h.01M14 20h.01M17 14h.01M17 17h3v3h-3zM20 14h.01"/>
-                </svg>
+            {[
+              {
+                icon: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h.01M14 17h.01M14 20h.01M17 14h.01M17 17h3v3h-3zM20 14h.01",
+                t: "Customer scans QR",
+                d: "They scan the QR code at your door, type their name, and join. No app, no account, no phone number required. Works on every smartphone.",
+                note: "Works on any smartphone",
+                delay: 0,
+              },
+              {
+                icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75",
+                t: "Staff adds them",
+                d: "Receptionist enters name and phone in 5 seconds. Works for walk-ins, phone bookings, and customers without smartphones.",
+                note: "Works for every customer",
+                delay: 100,
+              },
+            ].map((c) => (
+              <div key={c.t}
+                className="reveal rounded-2xl border border-white/8 bg-white/5 p-8 hover:bg-white/8 transition-colors"
+                style={{ opacity: 0, transform: "translateY(24px)", transition: `opacity 0.6s ease ${c.delay}ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${c.delay}ms` }}>
+                <div className="h-12 w-12 rounded-2xl bg-[#0F6E56]/20 flex items-center justify-center mb-6">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2DD4A0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={c.icon} />
+                  </svg>
+                </div>
+                <h3 className="font-display text-xl font-600 text-white mb-3"
+                  style={{ fontFamily: "'Syne', sans-serif", fontWeight: 600 }}>{c.t}</h3>
+                <p className="text-[#8A8A82] leading-relaxed text-sm">{c.d}</p>
+                <div className="mt-6 inline-flex items-center gap-2 text-xs text-[#2DD4A0] font-medium">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#2DD4A0]" />
+                  {c.note}
+                </div>
               </div>
-              <h3
-                className="font-display text-xl font-600 text-white mb-3"
-                style={{ fontFamily: "'Syne', sans-serif", fontWeight: 600 }}
-              >Customer scans QR</h3>
-              <p className="text-[#8A8A82] leading-relaxed text-sm">
-                They scan the QR code at your door, type their name, and join. No app, no account, no phone number required. Works on every smartphone.
-              </p>
-              <div className="mt-6 inline-flex items-center gap-2 text-xs text-[#2DD4A0] font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#2DD4A0]" />
-                Works on any smartphone
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-8 hover:bg-white/8 transition-colors">
-              <div className="h-12 w-12 rounded-2xl bg-[#0F6E56]/20 flex items-center justify-center mb-6">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2DD4A0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-                </svg>
-              </div>
-              <h3
-                className="font-display text-xl font-600 text-white mb-3"
-                style={{ fontFamily: "'Syne', sans-serif", fontWeight: 600 }}
-              >Staff adds them</h3>
-              <p className="text-[#8A8A82] leading-relaxed text-sm">
-                Receptionist enters name and phone in 5 seconds. Works for walk-ins, phone bookings, and customers without smartphones. Same queue, same dashboard.
-              </p>
-              <div className="mt-6 inline-flex items-center gap-2 text-xs text-[#2DD4A0] font-medium">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#2DD4A0]" />
-                Works for every customer
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -230,12 +241,10 @@ function Landing() {
       <section id="sms" className="py-24 sm:py-32 px-5">
         <div className="mx-auto max-w-6xl">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div>
+            <div className="reveal" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1)" }}>
               <p className="text-xs font-medium text-[#0F6E56] uppercase tracking-[0.2em] mb-3">SMS Notifications</p>
-              <h2
-                className="font-display text-[clamp(36px,4vw,52px)] font-700 leading-[1.05] tracking-tight text-[#0E0E0C] mb-6"
-                style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}
-              >
+              <h2 className="font-display text-[clamp(36px,4vw,52px)] font-700 leading-[1.05] tracking-tight text-[#0E0E0C] mb-6"
+                style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
                 Customers always know<br />where they stand.
               </h2>
               <p className="text-[#7A7A72] leading-relaxed mb-8">
@@ -257,9 +266,7 @@ function Landing() {
                 ))}
               </div>
             </div>
-
-            {/* SMS mockup */}
-            <div className="relative">
+            <div className="reveal relative" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease 150ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) 150ms" }}>
               <div className="bg-[#0E0E0C] rounded-3xl p-6 space-y-3">
                 <div className="text-xs text-[#4A4A42] uppercase tracking-widest mb-5 font-medium">Incoming messages</div>
                 {[
@@ -267,7 +274,7 @@ function Landing() {
                   { time: "25 min later", body: "Hi Amina, you're 3rd in line at Cuts & Style. Please start making your way back.", tag: "Heads-up" },
                   { time: "10 min later", body: "Hi Amina, it's your turn at Cuts & Style. Please come in now.", tag: "Your turn" },
                 ].map((m, i) => (
-                  <div key={i} className="group">
+                  <div key={i}>
                     <div className="text-[10px] text-[#4A4A42] mb-1.5 uppercase tracking-wider">{m.time}</div>
                     <div className="flex items-start gap-3">
                       <div className="flex-1 bg-[#0F6E56] rounded-2xl rounded-tl-sm px-4 py-3">
@@ -278,7 +285,6 @@ function Landing() {
                   </div>
                 ))}
               </div>
-              {/* glow */}
               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-48 h-16 bg-[#0F6E56]/20 blur-2xl rounded-full pointer-events-none" />
             </div>
           </div>
@@ -288,13 +294,13 @@ function Landing() {
       {/* ── SECTORS ── */}
       <section id="sectors" className="py-24 sm:py-32 px-5 bg-[#ECEAE4]">
         <div className="mx-auto max-w-6xl">
-          <p className="text-xs font-medium text-[#0F6E56] uppercase tracking-[0.2em] mb-3">Industries</p>
-          <h2
-            className="font-display text-[clamp(36px,5vw,60px)] font-700 leading-[1.0] tracking-tight text-[#0E0E0C] mb-14"
-            style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}
-          >
-            Built for any business<br />with a queue.
-          </h2>
+          <div className="reveal" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1)" }}>
+            <p className="text-xs font-medium text-[#0F6E56] uppercase tracking-[0.2em] mb-3">Industries</p>
+            <h2 className="font-display text-[clamp(36px,5vw,60px)] font-700 leading-[1.0] tracking-tight text-[#0E0E0C] mb-14"
+              style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
+              Built for any business<br />with a queue.
+            </h2>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
               { n: "Salons & Barbershops", d: "Keep clients informed while they wait elsewhere." },
@@ -303,10 +309,14 @@ function Landing() {
               { n: "Government offices", d: "Help citizens plan their visit without wasting a full day." },
               { n: "Insurance companies", d: "Manage client flow without a physical waiting room." },
               { n: "Restaurants & cafés", d: "Seat guests when their table is actually ready." },
-            ].map((s) => (
-              <div key={s.n} className="card-hover bg-white border border-[#DDD9D0] rounded-2xl p-5 cursor-default">
-                <div className="h-8 w-8 rounded-lg bg-[#0F6E56]/10 flex items-center justify-center mb-4">
-                  <div className="h-2 w-2 rounded-full bg-[#0F6E56]" />
+            ].map((s, i) => (
+              <div key={s.n}
+                className="reveal card-hover bg-white border border-[#DDD9D0] rounded-2xl p-5 cursor-default"
+                style={{ opacity: 0, transform: "translateY(24px)", transition: `opacity 0.6s ease ${(i % 3) * 80}ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${(i % 3) * 80}ms` }}>
+                <div className="h-8 w-8 rounded-lg bg-[#0F6E56]/8 flex items-center justify-center mb-4">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={SECTOR_ICONS[s.n] ?? "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"} />
+                  </svg>
                 </div>
                 <h3 className="text-sm font-medium text-[#0E0E0C] mb-1">{s.n}</h3>
                 <p className="text-xs text-[#7A7A72] leading-relaxed">{s.d}</p>
@@ -319,15 +329,14 @@ function Landing() {
       {/* ── CONTACT ── */}
       <section className="py-24 sm:py-32 px-5">
         <div className="mx-auto max-w-lg">
-          <p className="text-xs font-medium text-[#0F6E56] uppercase tracking-[0.2em] mb-3">Contact</p>
-          <h2
-            className="font-display text-[clamp(32px,4vw,48px)] font-700 leading-tight tracking-tight text-[#0E0E0C] mb-4"
-            style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}
-          >
-            We'd love to<br />hear from you.
-          </h2>
-          <p className="text-[#7A7A72] mb-10 text-sm">Question about pricing, setup, or a custom plan? Send us a message.</p>
-
+          <div className="reveal" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1)" }}>
+            <p className="text-xs font-medium text-[#0F6E56] uppercase tracking-[0.2em] mb-3">Contact</p>
+            <h2 className="font-display text-[clamp(32px,4vw,48px)] font-700 leading-tight tracking-tight text-[#0E0E0C] mb-4"
+              style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
+              We'd love to<br />hear from you.
+            </h2>
+            <p className="text-[#7A7A72] mb-10 text-sm">Question about setup, how it works, or want to try it for your business?</p>
+          </div>
           <form action="https://formspree.io/f/xbdbongl" method="POST" className="space-y-4">
             <input type="hidden" name="_subject" value="New Possac enquiry" />
             <div className="grid sm:grid-cols-2 gap-4">
@@ -367,15 +376,13 @@ function Landing() {
       {/* ── CTA ── */}
       <section className="px-5 pb-10">
         <div className="mx-auto max-w-6xl">
-          <div className="relative overflow-hidden bg-[#0E0E0C] rounded-3xl px-8 py-16 sm:px-14 sm:py-20 text-center">
-            {/* bg glow */}
+          <div className="reveal relative overflow-hidden bg-[#0E0E0C] rounded-3xl px-8 py-16 sm:px-14 sm:py-20 text-center"
+            style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1)" }}>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-[#0F6E56]/20 blur-[80px] rounded-full pointer-events-none" />
             <div className="relative">
               <p className="text-xs font-medium text-[#2DD4A0] uppercase tracking-[0.2em] mb-4">Get started today</p>
-              <h2
-                className="font-display text-[clamp(32px,5vw,56px)] font-700 leading-[1.05] tracking-tight text-white mb-5"
-                style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}
-              >
+              <h2 className="font-display text-[clamp(32px,5vw,56px)] font-700 leading-[1.05] tracking-tight text-white mb-5"
+                style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
                 Ready to run<br />a better queue?
               </h2>
               <p className="text-[#8A8A82] text-base max-w-sm mx-auto mb-8">

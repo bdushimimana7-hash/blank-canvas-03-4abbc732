@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
     const action = String(body?.action ?? "");
     const data = body?.data ?? {};
 
+    // ── business ──────────────────────────────────────────────────────────────
     if (action === "business") {
       const id = String(data?.businessId ?? "");
       if (!id) return json({ error: "Missing businessId" }, 400);
@@ -71,6 +72,7 @@ Deno.serve(async (req) => {
       return json({ id: biz.id, name: biz.name });
     }
 
+    // ── join ──────────────────────────────────────────────────────────────────
     if (action === "join") {
       const businessId = String(data?.businessId ?? "");
       const name = String(data?.name ?? "").trim();
@@ -85,10 +87,7 @@ Deno.serve(async (req) => {
       if (!biz || !biz.active) return json({ error: "Business not found" }, 404);
 
       let phone: string | null = null;
-      if (phoneRaw) {
-        phone = formatRwandaPhone(phoneRaw);
-        // Invalid phone is treated as no phone (silent skip per spec)
-      }
+      if (phoneRaw) phone = formatRwandaPhone(phoneRaw);
 
       const today = new Date().toISOString().slice(0, 10);
       let queueId: string | null = null;
@@ -127,6 +126,7 @@ Deno.serve(async (req) => {
       return json({ entryId: entry.id, position, wait });
     }
 
+    // ── status ────────────────────────────────────────────────────────────────
     if (action === "status") {
       const entryId = String(data?.entryId ?? "");
       if (!entryId) return json({ error: "Missing entryId" }, 400);
@@ -144,7 +144,6 @@ Deno.serve(async (req) => {
         .eq("queue_id", entry.queue_id).eq("status", "waiting")
         .lt("position", entry.position);
 
-      // Average service time from served entries today
       const { data: served } = await admin
         .from("queue_entries").select("added_at, served_at")
         .eq("business_id", entry.business_id).eq("status", "served")
@@ -165,6 +164,100 @@ Deno.serve(async (req) => {
         ahead: aheadCount, waitMinutes: wait,
         businessName: biz?.name ?? "",
       });
+    }
+
+    // ── pushback ──────────────────────────────────────────────────────────────
+    // Moves the customer back in queue by N minutes worth of positions
+    if (action === "pushback") {
+      const entryId = String(data?.entryId ?? "");
+      const delayMinutes = Number(data?.delayMinutes ?? 15);
+      if (!entryId) return json({ error: "Missing entryId" }, 400);
+      if (![15, 30, 45].includes(delayMinutes)) return json({ error: "Invalid delay" }, 400);
+
+      const { data: entry } = await admin
+        .from("queue_entries")
+        .select("id, status, position, queue_id, business_id, customer_name, customer_phone, wait_minutes")
+        .eq("id", entryId).maybeSingle();
+      if (!entry) return json({ error: "Entry not found" }, 404);
+      if (entry.status !== "waiting") return json({ error: "Can only push back waiting entries" }, 400);
+
+      // Calculate positions to move back
+      const { data: served } = await admin
+        .from("queue_entries").select("added_at, served_at")
+        .eq("business_id", entry.business_id).eq("status", "served")
+        .not("served_at", "is", null).limit(50);
+      let avgMin = AVG_SERVICE_MIN_FALLBACK;
+      if (served && served.length > 0) {
+        const durs = served
+          .map((s) => (new Date(s.served_at as string).getTime() - new Date(s.added_at).getTime()) / 60000)
+          .filter((m) => m > 0 && m < 240);
+        if (durs.length) avgMin = Math.max(1, Math.round(durs.reduce((a, b) => a + b, 0) / durs.length));
+      }
+      const positionsToMove = Math.max(1, Math.round(delayMinutes / avgMin));
+
+      // Find total waiting entries
+      const { count: totalWaiting } = await admin
+        .from("queue_entries").select("id", { count: "exact", head: true })
+        .eq("queue_id", entry.queue_id).eq("status", "waiting");
+      const total = totalWaiting ?? 0;
+
+      const newPosition = Math.min(entry.position + positionsToMove, total);
+
+      // Shift entries between old and new position forward by 1
+      if (newPosition > entry.position) {
+        const { data: toShift } = await admin
+          .from("queue_entries")
+          .select("id, position")
+          .eq("queue_id", entry.queue_id)
+          .eq("status", "waiting")
+          .gt("position", entry.position)
+          .lte("position", newPosition)
+          .order("position");
+
+        for (const e of (toShift ?? [])) {
+          await admin.from("queue_entries").update({ position: e.position - 1 }).eq("id", e.id);
+        }
+      }
+
+      // Update this entry's position and wait
+      const newWait = newPosition * avgMin;
+      await admin.from("queue_entries")
+        .update({ position: newPosition, wait_minutes: newWait })
+        .eq("id", entryId);
+
+      // Send updated SMS if phone available
+      if (entry.customer_phone) {
+        const { data: biz } = await admin
+          .from("businesses").select("name").eq("id", entry.business_id).maybeSingle();
+        const msg = `Hi ${entry.customer_name}, your spot has been moved to #${newPosition} at ${biz?.name ?? "the queue"}. Estimated wait: ${newWait} min. We'll alert you when you're close.`;
+        sendPindoSms(entry.customer_phone, msg);
+      }
+
+      return json({ ok: true, newPosition, newWait });
+    }
+
+    // ── remove ────────────────────────────────────────────────────────────────
+    if (action === "remove") {
+      const entryId = String(data?.entryId ?? "");
+      if (!entryId) return json({ error: "Missing entryId" }, 400);
+
+      const { data: entry } = await admin
+        .from("queue_entries")
+        .select("id, status, customer_name, customer_phone, business_id")
+        .eq("id", entryId).maybeSingle();
+      if (!entry) return json({ error: "Entry not found" }, 404);
+      if (entry.status !== "waiting") return json({ error: "Can only remove waiting entries" }, 400);
+
+      await admin.from("queue_entries").update({ status: "no_show" }).eq("id", entryId);
+
+      if (entry.customer_phone) {
+        const { data: biz } = await admin
+          .from("businesses").select("name").eq("id", entry.business_id).maybeSingle();
+        const msg = `You have been removed from the queue at ${biz?.name ?? "the business"}. You can rejoin anytime by scanning the QR code.`;
+        sendPindoSms(entry.customer_phone, msg);
+      }
+
+      return json({ ok: true });
     }
 
     return json({ error: "Unknown action" }, 400);
