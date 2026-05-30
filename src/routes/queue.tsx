@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useSession } from "@/hooks/useSession";
 import { sectorCopy } from "@/lib/sectors";
@@ -10,15 +9,9 @@ import { sendSmsViaEdge } from "@/lib/edge-functions";
 import { Plus } from "lucide-react";
 
 interface Entry {
-  id: string;
-  customer_name: string;
-  customer_phone: string;
-  position: number;
-  status: "waiting" | "called" | "served" | "no_show";
-  added_at: string;
-  called_at: string | null;
-  served_at: string | null;
-  headsup_sent: boolean;
+  id: string; customer_name: string; customer_phone: string;
+  position: number; status: "waiting" | "called" | "served" | "no_show";
+  added_at: string; called_at: string | null; served_at: string | null; headsup_sent: boolean;
 }
 
 export default function LiveQueue() {
@@ -33,11 +26,9 @@ export default function LiveQueue() {
 
   const load = useCallback(async () => {
     if (!businessId) return;
-    const { data: q } = await supabase
-      .from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
+    const { data: q } = await supabase.from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
     if (!q) { setEntries([]); return; }
-    const { data } = await supabase
-      .from("queue_entries").select("*").eq("queue_id", q.id).order("position");
+    const { data } = await supabase.from("queue_entries").select("*").eq("queue_id", q.id).order("position");
     setEntries((data ?? []) as Entry[]);
   }, [businessId, today]);
 
@@ -45,145 +36,137 @@ export default function LiveQueue() {
 
   useEffect(() => {
     if (!businessId) return;
-    const channel = supabase
-      .channel("queue-entries-" + businessId)
-      .on("postgres_changes",
-        { event: "*", schema: "public", table: "queue_entries", filter: `business_id=eq.${businessId}` },
-        () => load())
+    const ch = supabase.channel("queue-" + businessId)
+      .on("postgres_changes", { event: "*", schema: "public", table: "queue_entries", filter: `business_id=eq.${businessId}` }, () => load())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(ch); };
   }, [businessId, load]);
 
   const copy = sectorCopy(sector);
 
-  const triggerHeadsupIfNeeded = async () => {
+  const triggerHeadsup = async () => {
     if (!businessId) return;
-    const { data: q } = await supabase
-      .from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
+    const { data: q } = await supabase.from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
     if (!q) return;
-    const { data: waitingList } = await supabase
-      .from("queue_entries")
-      .select("id, customer_name, customer_phone, headsup_sent, wait_minutes")
-      .eq("queue_id", q.id)
-      .eq("status", "waiting")
-      .order("position");
-    const { data: bizCfg } = await supabase
-      .from("businesses").select("headsup_position").eq("id", businessId).maybeSingle();
-    const headsupPos = Math.max(1, Math.min(5, bizCfg?.headsup_position ?? 3));
-    if (!waitingList || waitingList.length < headsupPos) return;
-    const third = waitingList[headsupPos - 1];
-    if (third.headsup_sent) return;
-    const { data: claimed } = await supabase
-      .from("queue_entries")
-      .update({ headsup_sent: true })
-      .eq("id", third.id)
-      .eq("headsup_sent", false)
-      .select("id");
-    if (!claimed || claimed.length === 0) return;
-    const { data: biz } = await supabase
-      .from("businesses").select("sms_template_headsup").eq("id", businessId).single();
+    const { data: wl } = await supabase.from("queue_entries").select("id,customer_name,customer_phone,headsup_sent,wait_minutes").eq("queue_id", q.id).eq("status", "waiting").order("position");
+    const { data: bc } = await supabase.from("businesses").select("headsup_position").eq("id", businessId).maybeSingle();
+    const hp = Math.max(1, Math.min(5, bc?.headsup_position ?? 3));
+    if (!wl || wl.length < hp) return;
+    const t = wl[hp - 1];
+    if (t.headsup_sent) return;
+    const { data: claimed } = await supabase.from("queue_entries").update({ headsup_sent: true }).eq("id", t.id).eq("headsup_sent", false).select("id");
+    if (!claimed?.length) return;
+    const { data: biz } = await supabase.from("businesses").select("sms_template_headsup").eq("id", businessId).single();
     if (!biz?.sms_template_headsup) return;
-    const message = fillTemplate(biz.sms_template_headsup, {
-      name: third.customer_name, position: headsupPos, wait: third.wait_minutes ?? 0, business: businessName ?? "",
-    });
-    const r = await sendSmsViaEdge(third.customer_phone, message);
-    if (!r.success) {
-      await supabase.from("queue_entries").update({ headsup_sent: false }).eq("id", third.id);
-    }
+    const msg = fillTemplate(biz.sms_template_headsup, { name: t.customer_name, position: hp, wait: t.wait_minutes ?? 0, business: businessName ?? "" });
+    const r = await sendSmsViaEdge(t.customer_phone, msg);
+    if (!r.success) await supabase.from("queue_entries").update({ headsup_sent: false }).eq("id", t.id);
   };
 
   const callEntry = async (e: Entry) => {
-    const { error } = await supabase.from("queue_entries")
-      .update({ status: "called", called_at: new Date().toISOString() })
-      .eq("id", e.id);
-    if (error) { toast.error("Could not update: " + error.message); return; }
-    const { data: biz } = await supabase
-      .from("businesses").select("sms_template_call").eq("id", businessId!).single();
+    const { error } = await supabase.from("queue_entries").update({ status: "called", called_at: new Date().toISOString() }).eq("id", e.id);
+    if (error) { toast.error("Could not update"); return; }
+    const { data: biz } = await supabase.from("businesses").select("sms_template_call").eq("id", businessId!).single();
     if (biz?.sms_template_call) {
-      const message = fillTemplate(biz.sms_template_call, {
-        name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "",
-      });
+      const msg = fillTemplate(biz.sms_template_call, { name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "" });
       toast.success(`Called ${e.customer_name}`);
-      sendSmsViaEdge(e.customer_phone, message)
-        .then((r) => { if (!r.success) toast.warning("Called. SMS failed — check Pindo settings."); })
-        .catch(() => toast.warning("Called. SMS failed — check Pindo settings."));
-    } else {
-      toast.success(`Called ${e.customer_name}`);
-    }
-    triggerHeadsupIfNeeded();
+      sendSmsViaEdge(e.customer_phone, msg).then((r) => { if (!r.success) toast.warning("SMS failed"); }).catch(() => toast.warning("SMS failed"));
+    } else toast.success(`Called ${e.customer_name}`);
+    triggerHeadsup();
   };
 
   const setStatus = async (e: Entry, status: "served" | "no_show") => {
-    const patch = status === "served"
-      ? { status, served_at: new Date().toISOString() }
-      : { status };
+    const patch = status === "served" ? { status, served_at: new Date().toISOString() } : { status };
     const { error } = await supabase.from("queue_entries").update(patch).eq("id", e.id);
-    if (error) { toast.error("Could not update: " + error.message); return; }
+    if (error) { toast.error("Could not update"); return; }
     toast.success(status === "served" ? "Marked served" : "Marked no-show");
-    triggerHeadsupIfNeeded();
+    triggerHeadsup();
   };
 
   const waiting = entries.filter((e) => e.status === "waiting").length;
   const called = entries.filter((e) => e.status === "called").length;
   const served = entries.filter((e) => e.status === "served").length;
 
-  const statusBadge: Record<Entry["status"], string> = {
-    waiting: "bg-info/10 text-info border-info/20",
-    called: "bg-warning/15 text-warning border-warning/30",
-    served: "bg-success/10 text-success border-success/20",
-    no_show: "bg-muted text-muted-foreground border-border",
-  };
-  const statusLabel: Record<Entry["status"], string> = {
-    waiting: "Waiting", called: "Called", served: "Served", no_show: "No show",
+  const badge: Record<Entry["status"], { bg: string; text: string; label: string }> = {
+    waiting:  { bg: "bg-blue-50",   text: "text-blue-600",  label: "Waiting" },
+    called:   { bg: "bg-amber-50",  text: "text-amber-600", label: "Called" },
+    served:   { bg: "bg-green-50",  text: "text-green-600", label: "Served" },
+    no_show:  { bg: "bg-[#F3F4F6]", text: "text-[#6B7280]", label: "No show" },
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur border-b">
-        <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F9FAFB]">
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-white border-b border-[#E5E7EB]">
+        <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
           <div>
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Today's queue</div>
-            <div className="text-sm font-medium truncate max-w-[180px]">{businessName ?? "—"}</div>
+            <div className="text-[10px] uppercase tracking-widest text-[#9CA3AF] font-medium">Today&apos;s queue</div>
+            <div className="text-[14px] font-semibold text-[#111827] truncate max-w-[200px] leading-tight">{businessName ?? "—"}</div>
           </div>
-          <button onClick={() => supabase.auth.signOut()} className="text-xs text-muted-foreground">Sign out</button>
+          <div className="flex items-center gap-3">
+            <Link to="/dashboard" className="text-xs text-[#6B7280] hover:text-[#111827] transition-colors">Dashboard</Link>
+            <button onClick={() => supabase.auth.signOut()} className="text-xs text-[#6B7280] hover:text-[#111827] transition-colors">Sign out</button>
+          </div>
         </div>
-        <div className="max-w-md mx-auto px-4 pb-3 grid grid-cols-3 gap-2">
-          <SummaryStat label="Waiting" value={waiting} accent="text-info" />
-          <SummaryStat label="Called" value={called} accent="text-warning" />
-          <SummaryStat label="Served" value={served} accent="text-success" />
+        {/* Stats bar */}
+        <div className="max-w-lg mx-auto px-4 pb-3 grid grid-cols-3 gap-2">
+          {[
+            { label: "Waiting", value: waiting, color: "text-blue-600" },
+            { label: "Called",  value: called,  color: "text-amber-500" },
+            { label: "Served",  value: served,  color: "text-green-600" },
+          ].map((s) => (
+            <div key={s.label} className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-xl py-2 text-center">
+              <div className={`text-xl font-semibold tabular-nums ${s.color}`}>{s.value}</div>
+              <div className="text-[10px] text-[#9CA3AF] uppercase tracking-wider mt-0.5">{s.label}</div>
+            </div>
+          ))}
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 py-4 pb-28">
+      {/* List */}
+      <main className="max-w-lg mx-auto px-4 py-4 pb-28">
         {entries.length === 0 ? (
-          <div className="border border-dashed rounded-lg p-8 text-center text-sm text-muted-foreground">
-            No one in the queue yet. Add your first customer.
+          <div className="mt-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-[#E5E7EB] mx-auto flex items-center justify-center mb-4">
+              <Plus className="h-5 w-5 text-[#9CA3AF]" />
+            </div>
+            <p className="text-sm font-medium text-[#111827]">Queue is empty</p>
+            <p className="text-xs text-[#6B7280] mt-1">Add your first {copy.customer.toLowerCase()} to get started.</p>
           </div>
         ) : (
           <ul className="space-y-2">
             {entries.map((e) => (
-              <li key={e.id} className="bg-card border rounded-lg p-3">
+              <li key={e.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
                 <div className="flex items-start gap-3">
-                  <div className="h-10 w-10 shrink-0 rounded-md bg-secondary flex items-center justify-center font-semibold text-secondary-foreground">
+                  <div className="h-9 w-9 shrink-0 rounded-xl bg-[#0F6E56]/10 flex items-center justify-center font-semibold text-[#0F6E56] text-sm">
                     {e.position}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium truncate">{e.customer_name}</span>
-                      <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border ${statusBadge[e.status]}`}>
-                        {statusLabel[e.status]}
+                      <span className="font-semibold text-[#111827] text-sm truncate">{e.customer_name}</span>
+                      <span className={`text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full ${badge[e.status].bg} ${badge[e.status].text}`}>
+                        {badge[e.status].label}
                       </span>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {e.customer_phone} · {new Date(e.added_at).toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}
+                    <div className="text-xs text-[#9CA3AF] mt-0.5">
+                      {e.customer_phone || "No phone"} · {new Date(e.added_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </div>
                     {(e.status === "waiting" || e.status === "called") && (
                       <div className="mt-3 flex gap-2">
                         {e.status === "waiting" && (
-                          <Button size="sm" onClick={() => callEntry(e)} className="flex-1">Call</Button>
+                          <button onClick={() => callEntry(e)}
+                            className="flex-1 h-8 bg-[#0F6E56] text-white rounded-lg text-xs font-medium hover:bg-[#0D5E49] transition-colors">
+                            Call
+                          </button>
                         )}
-                        <Button size="sm" variant="secondary" onClick={() => setStatus(e, "served")} className="flex-1">Served</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setStatus(e, "no_show")} className="flex-1">No show</Button>
+                        <button onClick={() => setStatus(e, "served")}
+                          className="flex-1 h-8 border border-[#E5E7EB] text-[#374151] rounded-lg text-xs font-medium hover:bg-[#F9FAFB] transition-colors">
+                          Served
+                        </button>
+                        <button onClick={() => setStatus(e, "no_show")}
+                          className="flex-1 h-8 text-[#9CA3AF] rounded-lg text-xs hover:bg-[#F9FAFB] transition-colors">
+                          No show
+                        </button>
                       </div>
                     )}
                   </div>
@@ -192,26 +175,14 @@ export default function LiveQueue() {
             ))}
           </ul>
         )}
-        <p className="text-[11px] text-center text-muted-foreground mt-6">
-          {copy.customer}s called: "{copy.called}"
-        </p>
       </main>
 
-      <Link
-        to="/queue-add"
-        className="fixed bottom-5 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 h-14 rounded-full shadow-lg shadow-primary/25 font-medium"
-      >
-        <Plus className="h-5 w-5" /> Add to queue
+      {/* FAB */}
+      <Link to="/queue-add"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 bg-[#0F6E56] text-white px-6 h-12 rounded-full shadow-lg font-medium text-sm hover:bg-[#0D5E49] transition-colors">
+        <Plus className="h-4 w-4" />
+        Add {copy.customer.toLowerCase()}
       </Link>
-    </div>
-  );
-}
-
-function SummaryStat({ label, value, accent }: { label: string; value: number; accent: string }) {
-  return (
-    <div className="bg-card border rounded-md py-2 px-2 text-center">
-      <div className={`text-xl font-semibold tabular-nums ${accent}`}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }
