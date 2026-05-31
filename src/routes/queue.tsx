@@ -6,7 +6,7 @@ import { useSession } from "@/hooks/useSession";
 import { sectorCopy } from "@/lib/sectors";
 import { fillTemplate } from "@/lib/format";
 import { sendSmsViaEdge } from "@/lib/edge-functions";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
 interface Entry {
   id: string; customer_name: string; customer_phone: string;
@@ -23,6 +23,8 @@ export default function LiveQueue() {
   const { user, loading, businessId, sector, businessName } = useSession();
   const [entries, setEntries] = useState<Entry[]>([]);
   const [arrived, setArrived] = useState<Set<string>>(new Set());
+  const [search, setSearch] = useState("");
+  const [hideServed, setHideServed] = useState(false);
 
   useEffect(() => { document.title = "Live queue — Possac"; }, []);
   useEffect(() => { if (!loading && !user) navigate("/login"); }, [loading, user, navigate]);
@@ -100,6 +102,14 @@ export default function LiveQueue() {
   const waiting = entries.filter((e) => e.status === "waiting").length;
   const called  = entries.filter((e) => e.status === "called").length;
   const served  = entries.filter((e) => e.status === "served").length;
+  const normalizedSearch = search.trim().toLowerCase();
+  const visibleEntries = entries.filter((e) => {
+    if (hideServed && (e.status === "served" || e.status === "no_show")) return false;
+    if (!normalizedSearch) return true;
+    return e.customer_name.toLowerCase().includes(normalizedSearch);
+  });
+  const activeEntries = visibleEntries.filter((e) => e.status === "waiting");
+  const doneEntries = visibleEntries.filter((e) => e.status !== "waiting");
 
   const badge: Record<Entry["status"], { bg: string; text: string; label: string }> = {
     waiting: { bg: "bg-blue-50",   text: "text-blue-600",  label: "Waiting" },
@@ -141,6 +151,18 @@ export default function LiveQueue() {
 
       {/* List */}
       <main className="max-w-lg mx-auto px-4 py-4 pb-28">
+        <div className="mb-4 rounded-2xl border border-[#DDD9D0] bg-white p-3 shadow-sm">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#7A7A72]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by customer name"
+              className="h-11 w-full rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] pl-9 pr-3 text-sm outline-none focus:border-[#0F6E56]"
+            />
+          </div>
+          <p className="mt-2 text-xs text-[#7A7A72]">Tip: Use Call to notify customers in order.</p>
+        </div>
         {entries.length === 0 ? (
           <div className="mt-12 text-center">
             <div className="w-12 h-12 rounded-full bg-[#E5E7EB] mx-auto flex items-center justify-center mb-4">
@@ -150,14 +172,15 @@ export default function LiveQueue() {
             <p className="text-xs text-[#6B7280] mt-1">Add your first {copy.customer.toLowerCase()} to get started.</p>
           </div>
         ) : (
-          <ul className="space-y-2">
-            {entries.map((e) => {
+          <div className="space-y-5">
+            <ul className="space-y-2">
+            {activeEntries.map((e) => {
               const isHere = arrived.has(e.id);
               const selfJoined = isSelfJoined(e);
               return (
-                <li key={e.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
+                <li key={e.id} className="queue-row-animate bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
                   <div className="flex items-start gap-3">
-                    <div className="h-9 w-9 shrink-0 rounded-xl bg-[#0F6E56]/10 flex items-center justify-center font-semibold text-[#0F6E56] text-sm">
+                    <div className="h-10 w-10 shrink-0 rounded-xl bg-[#0F6E56] flex items-center justify-center font-semibold text-white text-base shadow-sm">
                       {e.position}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -213,7 +236,56 @@ export default function LiveQueue() {
                 </li>
               );
             })}
-          </ul>
+            </ul>
+            {doneEntries.length > 0 && (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[#DDD9D0]" />
+                  <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-[#7A7A72]">Called, served and no-show</span>
+                  <div className="h-px flex-1 bg-[#DDD9D0]" />
+                </div>
+                <ul className="space-y-2">
+                  {doneEntries.map((e) => (
+                    <li key={e.id} className="queue-row-animate bg-white/70 border border-[#E5E7EB] rounded-2xl p-4 shadow-sm opacity-80">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 shrink-0 rounded-xl bg-[#0F6E56] flex items-center justify-center font-semibold text-white text-base">{e.position}</div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-sm font-semibold text-[#111827]">{e.customer_name}</span>
+                            <span className={`ml-auto text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full ${badge[e.status].bg} ${badge[e.status].text}`}>
+                              {badge[e.status].label}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-xs text-[#9CA3AF]">{e.customer_phone || "No phone"} · {new Date(e.added_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+                          {e.status === "called" && (
+                            <div className="mt-3 flex gap-2">
+                              <button onClick={() => setStatus(e, "served")}
+                                className="flex-1 h-8 border border-[#E5E7EB] text-[#374151] rounded-lg text-xs font-medium hover:bg-[#F9FAFB] transition-colors">
+                                Served
+                              </button>
+                              <button onClick={() => setStatus(e, "no_show")}
+                                className="flex-1 h-8 text-[#9CA3AF] rounded-lg text-xs hover:bg-[#F9FAFB] transition-colors">
+                                No show
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {visibleEntries.length === 0 && (
+              <div className="rounded-2xl border border-[#DDD9D0] bg-white p-6 text-center text-sm text-[#7A7A72]">No matching entries.</div>
+            )}
+            <button
+              onClick={() => setHideServed((v) => !v)}
+              className="w-full rounded-xl border border-[#DDD9D0] bg-white px-4 py-3 text-sm font-medium text-[#0E0E0C] transition-colors hover:border-[#0F6E56]/40 hover:bg-[#E8F5F1]"
+            >
+              {hideServed ? "Show served entries" : "Clear served entries"}
+            </button>
+          </div>
         )}
       </main>
 

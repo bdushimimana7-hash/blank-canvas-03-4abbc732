@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
 import { sectorLabel } from "@/lib/sectors";
-import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle } from "lucide-react";
+import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle, LayoutDashboard, Menu, X, LogOut } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import QRCode from "qrcode";
 
@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [onboarding, setOnboarding] = useState<{
     show: boolean; smsCustomized: boolean; hasStaff: boolean; hasEntry: boolean;
   } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => { document.title = "Dashboard — Possac"; }, []);
 
@@ -144,42 +145,34 @@ export default function Dashboard() {
     };
   });
 
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <PossacLogo />
-          <div className="flex items-center gap-3">
-            <Link to="/queue" className="text-sm font-medium text-foreground hover:text-primary inline-flex items-center gap-1.5">
-              <ListOrdered className="h-4 w-4" /> Live queue
-            </Link>
-            <Link to="/history" className="text-sm font-medium text-foreground hover:text-primary inline-flex items-center gap-1.5">
-              <HistoryIcon className="h-4 w-4" /> History
-            </Link>
-            <Link to="/settings" className="text-sm font-medium text-foreground hover:text-primary inline-flex items-center gap-1.5">
-              <SettingsIcon className="h-4 w-4" /> Settings
-            </Link>
-            <button onClick={() => supabase.auth.signOut()} className="text-sm text-muted-foreground hover:text-foreground">
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const firstName = user?.user_metadata?.full_name?.split(" ")[0] || businessName || "there";
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+  return (
+    <div className="route-fade min-h-screen bg-[#F7F5F0] lg:flex">
+      <button onClick={() => setSidebarOpen(true)} className="fixed left-4 top-4 z-30 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#DDD9D0] bg-white text-[#0E0E0C] shadow-sm lg:hidden">
+        <Menu className="h-5 w-5" />
+      </button>
+      <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+      <main className="mx-auto w-full max-w-6xl px-6 py-8 lg:ml-64">
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{businessName ?? "—"}</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight">{greeting}, {firstName}</h1>
           <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-accent-foreground font-medium">
             {sectorLabel(sector)}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground">Today, {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+        <p className="text-sm text-muted-foreground">{businessName ?? "—"} · Today, {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
 
         {onboarding?.show && (
           <OnboardingCard smsCustomized={onboarding.smsCustomized} hasStaff={onboarding.hasStaff} hasEntry={onboarding.hasEntry} />
         )}
 
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
+        <div className="mt-8 flex items-center justify-between">
+          <h2 className="font-display text-xl font-semibold">Today at a glance</h2>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-3">
           <StatCard label="Total today" value={total} />
           <StatCard label="Waiting" value={waiting} tone="info" />
           <StatCard label="Served" value={served} tone="success" />
@@ -187,7 +180,9 @@ export default function Dashboard() {
           <StatCard label="Avg wait" value={avgWait} suffix="min" />
         </div>
 
-        <div className="mt-8 bg-card border rounded-xl p-5">
+        {total === 0 && <EmptyToday />}
+
+        <div className="mt-8 bg-white border border-[#DDD9D0] rounded-2xl p-5 shadow-sm">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="text-base font-semibold">Queue volume by hour</h2>
             <span className="text-xs text-muted-foreground">Today</span>
@@ -195,18 +190,18 @@ export default function Dashboard() {
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#DDD9D0" vertical={false} />
                 <XAxis dataKey="hour" stroke="currentColor" fontSize={11} tickLine={false} axisLine={false} className="text-muted-foreground" />
                 <YAxis stroke="currentColor" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} className="text-muted-foreground" />
-                <Tooltip cursor={{ fill: "var(--accent)" }}
-                  contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                <Tooltip cursor={{ fill: "#E8F5F1" }}
+                  contentStyle={{ background: "#FFFFFF", border: "1px solid #DDD9D0", borderRadius: 8, fontSize: 12 }} />
+                <Bar dataKey="count" fill="#0F6E56" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="mt-6 bg-card border rounded-xl p-5">
+        <div className="mt-6 bg-white border border-[#DDD9D0] rounded-2xl p-5 shadow-sm">
           <div className="flex items-baseline justify-between mb-4">
             <h2 className="text-base font-semibold">Last 7 days</h2>
             <Link to="/history" className="text-xs font-medium text-primary hover:underline">View full history →</Link>
@@ -243,13 +238,58 @@ export default function Dashboard() {
   );
 }
 
+function DashboardSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const items = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/queue", label: "Live Queue", icon: ListOrdered },
+    { to: "/history", label: "History", icon: HistoryIcon },
+    { to: "/settings", label: "Settings", icon: SettingsIcon },
+  ];
+  return (
+    <>
+      <div className={`fixed inset-0 z-40 bg-black/25 lg:hidden ${open ? "block" : "hidden"}`} onClick={onClose} />
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-[#DDD9D0] bg-white p-5 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="flex items-center justify-between">
+          <PossacLogo />
+          <button onClick={onClose} className="lg:hidden"><X className="h-5 w-5" /></button>
+        </div>
+        <nav className="mt-10 space-y-1">
+          {items.map((item) => (
+            <Link key={item.to} to={item.to} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[#3A3A35] transition-colors hover:bg-[#E8F5F1] hover:text-[#0F6E56]">
+              <item.icon className="h-4 w-4" /> {item.label}
+            </Link>
+          ))}
+        </nav>
+        <button onClick={() => supabase.auth.signOut()} className="absolute bottom-5 left-5 right-5 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[#7A7A72] transition-colors hover:bg-[#F7F5F0] hover:text-[#0E0E0C]">
+          <LogOut className="h-4 w-4" /> Sign out
+        </button>
+      </aside>
+    </>
+  );
+}
+
+function EmptyToday() {
+  return (
+    <div className="mt-6 rounded-2xl border border-[#DDD9D0] bg-white p-8 text-center shadow-sm">
+      <svg className="mx-auto h-24 w-24" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+        <rect x="26" y="30" width="68" height="58" rx="16" fill="#E8F5F1" />
+        <path d="M42 52h36M42 66h24" stroke="#0F6E56" strokeWidth="5" strokeLinecap="round" />
+        <circle cx="86" cy="34" r="10" fill="#0F6E56" opacity=".18" />
+        <path d="M34 91c13 8 39 8 52 0" stroke="#DDD9D0" strokeWidth="5" strokeLinecap="round" />
+      </svg>
+      <h3 className="mt-3 font-display text-xl font-semibold text-[#0E0E0C]">No entries today yet</h3>
+      <p className="mt-1 text-sm text-[#7A7A72]">Your live stats and chart will fill in as customers join the queue.</p>
+    </div>
+  );
+}
+
 function StatCard({ label, value, suffix, tone }: { label: string; value: number; suffix?: string; tone?: "info" | "success" | "muted" }) {
   const accent =
     tone === "info" ? "text-info" :
     tone === "success" ? "text-success" :
     tone === "muted" ? "text-muted-foreground" : "text-foreground";
   return (
-    <div className="bg-card border rounded-lg p-4">
+    <div className="bg-white border border-[#DDD9D0] rounded-2xl p-4 shadow-sm">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className={`mt-1 text-2xl font-semibold tabular-nums ${accent}`}>
         {value}{suffix && <span className="text-sm font-medium text-muted-foreground ml-1">{suffix}</span>}

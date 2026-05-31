@@ -11,7 +11,7 @@ import { SECTORS } from "@/lib/sectors";
 import { fillTemplate } from "@/lib/format";
 import { toast } from "sonner";
 import { callAdmin } from "@/lib/edge-functions";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Send, Trash2 } from "lucide-react";
 
 interface StaffRow { id: string; user_id: string; full_name: string; role: string; }
 
@@ -97,8 +97,19 @@ export default function SettingsPage() {
     } catch (err) { toast.error((err as Error).message); }
   };
 
+  const sendTest = async (template: string) => {
+    const phone = user?.phone;
+    if (!phone) {
+      toast.error("No registered owner phone number found.");
+      return;
+    }
+    const msg = fillTemplate(template, { name: "Jean", position: 6, wait: 45, business: name || "your business" });
+    const r = await import("@/lib/edge-functions").then((m) => m.sendSmsViaEdge(phone, msg));
+    if (r.success) toast.success("Test SMS sent"); else toast.error(r.error ?? "Test SMS failed");
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="route-fade min-h-screen bg-[#F7F5F0]">
       <header className="border-b bg-card">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <PossacLogo />
@@ -109,8 +120,8 @@ export default function SettingsPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-6 py-8 space-y-8">
-        <section className="bg-card border rounded-xl p-6">
-          <h2 className="text-lg font-semibold">Business</h2>
+        <section className="bg-white border border-[#DDD9D0] rounded-2xl p-6 shadow-sm">
+          <SectionHeading title="Business Profile" />
           <div className="mt-5 grid sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="bname">Name</Label>
@@ -126,8 +137,8 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="bg-card border rounded-xl p-6">
-          <h2 className="text-lg font-semibold">SMS templates</h2>
+        <section className="bg-white border border-[#DDD9D0] rounded-2xl p-6 shadow-sm">
+          <SectionHeading title="SMS Templates" />
           <div className="mt-3 rounded-md border bg-muted/40 px-3 py-2.5">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Available variables — replaced automatically</div>
             <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
@@ -138,8 +149,8 @@ export default function SettingsPage() {
             </div>
           </div>
           <div className="mt-5 space-y-4">
-            <TemplateField id="tpla" label="1. When customer joins" value={tplAdd} onChange={setTplAdd} business={name} />
-            <TemplateField id="tplf" label="2. When customer is first in queue" value={tplFirst} onChange={setTplFirst} business={name} />
+            <TemplateField id="tpla" label="1. When customer joins" value={tplAdd} onChange={setTplAdd} business={name} onTest={() => sendTest(tplAdd)} />
+            <TemplateField id="tplf" label="2. When customer is first in queue" value={tplFirst} onChange={setTplFirst} business={name} onTest={() => sendTest(tplFirst)} />
             <div className="space-y-1.5">
               <Label htmlFor="hpos">Send heads-up SMS when customer reaches position:</Label>
               <select id="hpos" value={headsupPos} onChange={(e) => setHeadsupPos(Number(e.target.value))}
@@ -147,8 +158,8 @@ export default function SettingsPage() {
                 {[1,2,3,4,5].map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
-            <TemplateField id="tplh" label={`3. Heads-up (auto-sent at position ${headsupPos})`} value={tplHeadsup} onChange={setTplHeadsup} business={name} />
-            <TemplateField id="tplc" label="4. When customer is called" value={tplCall} onChange={setTplCall} business={name} />
+            <TemplateField id="tplh" label={`3. Heads-up (auto-sent at position ${headsupPos})`} value={tplHeadsup} onChange={setTplHeadsup} business={name} onTest={() => sendTest(tplHeadsup)} />
+            <TemplateField id="tplc" label="4. When customer is called" value={tplCall} onChange={setTplCall} business={name} onTest={() => sendTest(tplCall)} />
           </div>
         </section>
 
@@ -156,16 +167,21 @@ export default function SettingsPage() {
           <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
         </div>
 
-        <section className="bg-card border rounded-xl p-6">
-          <h2 className="text-lg font-semibold">Staff</h2>
+        <section className="bg-white border border-[#DDD9D0] rounded-2xl p-6 shadow-sm">
+          <SectionHeading title="Team Members" />
           <p className="text-sm text-muted-foreground mt-1">Staff can only access the queue screens.</p>
-          <ul className="mt-4 divide-y border rounded-md">
+          <ul className="mt-4 grid gap-3">
             {staff.length === 0 && (<li className="p-4 text-sm text-muted-foreground">No staff yet.</li>)}
             {staff.map((s) => (
-              <li key={s.id} className="flex items-center justify-between p-3">
-                <div>
+              <li key={s.id} className="flex items-center justify-between rounded-2xl border border-[#DDD9D0] bg-[#F7F5F0] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0F6E56] font-semibold text-white">
+                    {initials(s.full_name || s.role)}
+                  </div>
+                  <div>
                   <div className="text-sm font-medium">{s.full_name || "(unnamed)"}</div>
-                  <div className="text-xs text-muted-foreground capitalize">{s.role}</div>
+                  <span className="mt-1 inline-flex rounded-full bg-white px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[#0F6E56]">{s.role}</span>
+                  </div>
                 </div>
                 {s.role !== "owner" && (
                   <button onClick={() => onRemove(s.id)} className="text-destructive hover:text-destructive/80 p-2">
@@ -197,19 +213,42 @@ export default function SettingsPage() {
             </div>
           </form>
         </section>
+
+        <section className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
+          <SectionHeading title="Danger Zone" />
+          <p className="mt-2 text-sm text-muted-foreground">Removing staff access is permanent for that staff profile. Business deletion is handled by support.</p>
+        </section>
       </main>
     </div>
   );
 }
 
-function TemplateField({ id, label, value, onChange, business }: {
-  id: string; label: string; value: string; onChange: (v: string) => void; business: string;
+function SectionHeading({ title }: { title: string }) {
+  return (
+    <div className="border-b border-[#DDD9D0] pb-4">
+      <h2 className="font-display text-xl font-semibold text-[#0E0E0C]">{title}</h2>
+    </div>
+  );
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "P";
+}
+
+function TemplateField({ id, label, value, onChange, business, onTest }: {
+  id: string; label: string; value: string; onChange: (v: string) => void; business: string; onTest: () => void;
 }) {
   const preview = fillTemplate(value, { name: "Jean", position: 6, wait: 45, business: business || "your business" });
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center justify-between gap-3">
+        <Label htmlFor={id}>{label}</Label>
+        <button type="button" onClick={onTest} className="inline-flex items-center gap-1.5 rounded-lg border border-[#DDD9D0] bg-white px-2.5 py-1 text-xs font-medium text-[#0F6E56] hover:bg-[#E8F5F1]">
+          <Send className="h-3 w-3" /> Send test SMS
+        </button>
+      </div>
       <Textarea id={id} rows={3} value={value} onChange={(e) => onChange(e.target.value)} />
+      <div className="text-right text-xs text-muted-foreground">{value.length}/160 characters</div>
       <div className="rounded-md border bg-muted/30 px-3 py-2">
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Preview</div>
         <div className="text-sm mt-1 whitespace-pre-wrap">{preview}</div>

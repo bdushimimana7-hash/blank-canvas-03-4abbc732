@@ -20,6 +20,9 @@ export default function History() {
   const [queues, setQueues] = useState<QueueRow[]>([]);
   const [openDays, setOpenDays] = useState<Record<string, boolean>>({});
   const [fetching, setFetching] = useState(true);
+  const [range, setRange] = useState<"today" | "7" | "30" | "custom">("7");
+  const [customStart, setCustomStart] = useState(new Date().toISOString().slice(0, 10));
+  const [customEnd, setCustomEnd] = useState(new Date().toISOString().slice(0, 10));
 
   useEffect(() => { document.title = "History — Possac"; }, []);
   useEffect(() => {
@@ -55,22 +58,41 @@ export default function History() {
 
   const grouped = useMemo(() => {
     const g = new Map<string, Entry[]>();
-    entries.forEach((e) => {
+    filteredEntries.forEach((e) => {
       const d = dateByQueue.get(e.queue_id) ?? e.added_at.slice(0, 10);
       if (!g.has(d)) g.set(d, []);
       g.get(d)!.push(e);
     });
     return Array.from(g.entries()).sort((a, b) => b[0].localeCompare(a[0]));
-  }, [entries, dateByQueue]);
+  }, [filteredEntries, dateByQueue]);
+
+  const filteredEntries = useMemo(() => {
+    const today = new Date();
+    let start = new Date(today);
+    let end = new Date(today);
+    if (range === "7") start.setDate(today.getDate() - 6);
+    if (range === "30") start.setDate(today.getDate() - 29);
+    if (range === "custom") {
+      start = new Date(customStart + "T00:00:00");
+      end = new Date(customEnd + "T23:59:59");
+    } else {
+      start = new Date(start.toISOString().slice(0, 10) + "T00:00:00");
+      end = new Date(today.toISOString().slice(0, 10) + "T23:59:59");
+    }
+    return entries.filter((e) => {
+      const d = new Date((dateByQueue.get(e.queue_id) ?? e.added_at.slice(0, 10)) + "T12:00:00");
+      return d >= start && d <= end;
+    });
+  }, [entries, dateByQueue, range, customStart, customEnd]);
 
   const allTime = useMemo(() => {
-    const served = entries.filter((e) => e.status === "served");
-    const noShow = entries.filter((e) => e.status === "no_show").length;
+    const served = filteredEntries.filter((e) => e.status === "served");
+    const noShow = filteredEntries.filter((e) => e.status === "no_show").length;
     const durations = served.filter((e) => e.served_at)
       .map((e) => (new Date(e.served_at!).getTime() - new Date(e.added_at).getTime()) / 60000);
     const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
     const counts = new Map<string, number>();
-    entries.forEach((e) => {
+    filteredEntries.forEach((e) => {
       const d = dateByQueue.get(e.queue_id) ?? e.added_at.slice(0, 10);
       counts.set(d, (counts.get(d) ?? 0) + 1);
     });
@@ -80,13 +102,13 @@ export default function History() {
           (acc, [date, count]) => (count > acc.count ? { date, count } : acc),
           { date: entriesArr[0][0], count: entriesArr[0][1] })
       : null;
-    const noShowRate = entries.length ? Math.round((noShow / entries.length) * 100) : 0;
+    const noShowRate = filteredEntries.length ? Math.round((noShow / filteredEntries.length) * 100) : 0;
     return { servedCount: served.length, avg, busiest, noShowRate };
-  }, [entries, dateByQueue]);
+  }, [filteredEntries, dateByQueue]);
 
   const downloadCsv = () => {
     const header = ["date", "customer_name", "phone", "position", "status", "added_at", "called_at", "served_at", "wait_minutes"];
-    const rows = entries.map((e) => {
+    const rows = filteredEntries.map((e) => {
       const date = dateByQueue.get(e.queue_id) ?? e.added_at.slice(0, 10);
       return [
         date, csvEscape(e.customer_name), csvEscape(e.customer_phone),
@@ -105,7 +127,7 @@ export default function History() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="route-fade min-h-screen bg-[#F7F5F0]">
       <header className="border-b bg-card">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <PossacLogo />
@@ -123,14 +145,41 @@ export default function History() {
             <h1 className="text-2xl font-semibold tracking-tight">Queue history</h1>
             <p className="text-sm text-muted-foreground">All past queue entries for {businessName ?? "your business"}.</p>
           </div>
-          <button onClick={downloadCsv} disabled={entries.length === 0}
+          <button onClick={downloadCsv} disabled={filteredEntries.length === 0}
             className="inline-flex items-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
             <Download className="h-4 w-4" /> Download CSV
           </button>
         </div>
 
+        <div className="mb-6 rounded-2xl border border-[#DDD9D0] bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground">Date range</label>
+              <select value={range} onChange={(e) => setRange(e.target.value as typeof range)}
+                className="mt-1 h-10 rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] px-3 text-sm">
+                <option value="today">Today</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            {range === "custom" && (
+              <>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Start</label>
+                  <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="mt-1 h-10 rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] px-3 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">End</label>
+                  <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="mt-1 h-10 rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] px-3 text-sm" />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-          <StatCard label="Served (all time)" value={allTime.servedCount} tone="success" />
+          <StatCard label="Served" value={allTime.servedCount} tone="success" />
           <StatCard label="Avg wait" value={allTime.avg} suffix="min" />
           <StatCard label="Busiest day" value={allTime.busiest ? allTime.busiest.count : 0}
             suffix={allTime.busiest ? formatShortDate(allTime.busiest.date) : ""} />
@@ -184,8 +233,8 @@ export default function History() {
                           </tr>
                         </thead>
                         <tbody>
-                          {dayEntries.slice().sort((a, b) => a.position - b.position).map((e) => (
-                            <tr key={e.id} className="border-t">
+                          {dayEntries.slice().sort((a, b) => a.position - b.position).map((e, index) => (
+                            <tr key={e.id} className={`border-t ${index % 2 ? "bg-[#F7F5F0]/70" : "bg-white"}`}>
                               <td className="px-4 py-2 tabular-nums">{e.position}</td>
                               <td className="px-4 py-2">{e.customer_name}</td>
                               <td className="px-4 py-2 text-muted-foreground">{e.customer_phone}</td>

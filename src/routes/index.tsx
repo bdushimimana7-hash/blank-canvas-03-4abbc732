@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
@@ -19,6 +19,25 @@ export default function IndexPage() {
     </div>
   );
   return <Landing />;
+}
+
+function BackToTop() {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 400);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  return (
+    <button
+      aria-label="Back to top"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      className={`fixed bottom-5 right-5 z-50 h-10 w-10 rounded-full border border-[#DDD9D0] bg-white text-[#0F6E56] shadow-lg transition-all hover:-translate-y-0.5 hover:border-[#0F6E56]/40 ${visible ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}
+    >
+      ↑
+    </button>
+  );
 }
 
 /* ── Scroll animation hook ── */
@@ -60,12 +79,111 @@ const SECTOR_ICONS: Record<string, string> = {
   "Restaurants & cafés":   "M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z",
 };
 
+function HeroPhoneMockup() {
+  return (
+    <div className="animate-fade-in delay-300 hidden lg:flex justify-center">
+      <div className="relative h-[520px] w-[260px] rounded-[42px] border border-[#0E0E0C]/15 bg-[#0E0E0C] p-3 shadow-2xl shadow-[#0F6E56]/20">
+        <div className="absolute left-1/2 top-3 h-5 w-24 -translate-x-1/2 rounded-full bg-black" />
+        <div className="h-full rounded-[32px] bg-[#F7F5F0] p-5 pt-12">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-[#7A7A72]">Possac Queue</div>
+              <div className="font-display text-lg font-bold text-[#0E0E0C]">Kigali Cuts</div>
+            </div>
+            <span className="pulse-dot relative h-3 w-3 rounded-full bg-[#0F6E56]" />
+          </div>
+          <div className="rounded-3xl border border-[#DDD9D0] bg-white p-5 shadow-sm">
+            <div className="text-xs font-medium text-[#7A7A72]">Your position</div>
+            <div className="font-display mt-2 text-6xl font-extrabold leading-none text-[#0F6E56]">#4</div>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <div className="rounded-xl bg-[#E8F5F1] p-3">
+                <div className="text-[10px] text-[#7A7A72]">Ahead</div>
+                <div className="font-semibold text-[#0E0E0C]">3</div>
+              </div>
+              <div className="rounded-xl bg-[#ECEAE4] p-3">
+                <div className="text-[10px] text-[#7A7A72]">Wait</div>
+                <div className="font-semibold text-[#0E0E0C]">25m</div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-5 rounded-2xl bg-[#0F6E56] p-4 text-white">
+            <div className="text-xs text-white/70">SMS sent</div>
+            <p className="mt-1 text-sm leading-relaxed">You are 3rd in line. Please start making your way back.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TestimonialsSection() {
+  const testimonials = [
+    { name: "Aline Mukamana", business: "Salon owner, Remera", quote: "Our waiting area feels calm now. Clients scan, leave for errands, and come back when the SMS arrives." },
+    { name: "Jean Bosco Ndayisaba", business: "Pharmacy manager, Nyamirambo", quote: "Possac helped us reduce crowding during busy evenings without buying any hardware or training customers on an app." },
+    { name: "Claudine Uwera", business: "SACCO branch lead, Musanze", quote: "The staff dashboard is simple enough for the whole team. Customers trust the queue because they can check their place anytime." },
+  ];
+  return (
+    <section className="py-24 sm:py-32 px-5 bg-[#0E0E0C]">
+      <div className="mx-auto max-w-6xl">
+        <p className="text-xs font-medium text-[#2DD4A0] uppercase tracking-[0.2em] mb-3">Social proof</p>
+        <h2 className="font-display text-[clamp(34px,5vw,56px)] font-bold leading-tight text-white mb-12">Trusted by Rwanda's everyday queues.</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {testimonials.map((t) => (
+            <article key={t.name} className="rounded-2xl border border-white/10 bg-white/[0.06] p-6">
+              <p className="text-sm leading-7 text-white/80">"{t.quote}"</p>
+              <div className="mt-6 border-t border-white/10 pt-4">
+                <div className="font-medium text-white">{t.name}</div>
+                <div className="text-xs text-[#2DD4A0]">{t.business}</div>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FaqSection() {
+  const [open, setOpen] = useState(0);
+  const items = [
+    ["Is Possac really free?", "Yes. Possac is free to start so small teams can run a virtual queue without upfront cost."],
+    ["Do customers need to download an app?", "No. Customers join from a normal browser link after scanning your QR code."],
+    ["What happens if a customer loses their link?", "Staff can find them in the live queue and call them by SMS when it is their turn."],
+    ["Can I have multiple staff members?", "Yes. Owners can add staff accounts from Settings and each staff member can manage the live queue."],
+    ["Does it work without internet for customers?", "Joining and checking status needs internet, but SMS notifications work on any phone once they are in the queue."],
+  ];
+  return (
+    <section className="py-24 sm:py-32 px-5 bg-[#F7F5F0]">
+      <div className="mx-auto max-w-3xl">
+        <p className="text-xs font-medium text-[#0F6E56] uppercase tracking-[0.2em] mb-3">FAQ</p>
+        <h2 className="font-display text-[clamp(34px,5vw,52px)] font-bold leading-tight text-[#0E0E0C] mb-10">Questions before you start.</h2>
+        <div className="divide-y divide-[#DDD9D0] rounded-2xl border border-[#DDD9D0] bg-white">
+          {items.map(([q, a], i) => (
+            <div key={q}>
+              <button onClick={() => setOpen(open === i ? -1 : i)} className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left font-medium text-[#0E0E0C]">
+                {q}
+                <span className="text-[#0F6E56]">{open === i ? "−" : "+"}</span>
+              </button>
+              <div className={`grid transition-all duration-300 ${open === i ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                <div className="overflow-hidden">
+                  <p className="px-5 pb-5 text-sm leading-7 text-[#7A7A72]">{a}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ── Main ── */
 function Landing() {
   useScrollReveal();
 
   return (
-    <div className="grain min-h-screen bg-[#F7F5F0] overflow-x-hidden">
+    <div className="route-fade grain min-h-screen bg-[#F7F5F0] overflow-x-hidden">
+      <BackToTop />
 
       {/* ── NAV — full-width, flush, bottom border ── */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#F7F5F0]/95 backdrop-blur-xl border-b border-[#DDD9D0]">
@@ -80,7 +198,7 @@ function Landing() {
             <Link to="/login" className="text-sm text-[#7A7A72] hover:text-[#0E0E0C] transition-colors px-3 py-1.5 hidden sm:block">
               Sign in
             </Link>
-            <Link to="/signup" className="btn-press text-sm font-medium bg-[#0E0E0C] text-white px-4 py-2 rounded-xl hover:bg-[#1a1a16] transition-colors">
+            <Link to="/signup" className="btn-press shine-hover text-sm font-medium bg-[#0E0E0C] text-white px-4 py-2 rounded-xl hover:bg-[#1a1a16] transition-colors">
               Start free →
             </Link>
           </div>
@@ -90,7 +208,8 @@ function Landing() {
       {/* ── HERO ── */}
       <section className="relative min-h-screen flex flex-col justify-center pt-28 pb-20 px-5">
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#0F6E56]/6 blur-[100px] pointer-events-none" />
-        <div className="relative mx-auto max-w-6xl w-full">
+        <div className="relative mx-auto grid max-w-6xl w-full items-center gap-12 lg:grid-cols-[1fr_360px]">
+          <div>
           <div className="animate-fade-up inline-flex items-center gap-2.5 bg-white border border-[#DDD9D0] rounded-full px-4 py-1.5 text-xs text-[#7A7A72] mb-8 shadow-sm">
             <span className="relative h-2 w-2 pulse-dot rounded-full bg-[#0F6E56]" />
             Live in Rwanda · Free to start
@@ -107,11 +226,11 @@ function Landing() {
             Possac gives any business a virtual queue in minutes. Customers scan a QR, wait from anywhere, and come back only when it's their turn.
           </p>
           <div className="animate-fade-up delay-300 mt-9 flex flex-wrap items-center gap-3">
-            <Link to="/signup" className="btn-press inline-flex items-center gap-2 bg-[#0F6E56] text-white text-[15px] font-medium px-7 py-3.5 rounded-xl hover:bg-[#0a5a44] transition-colors shadow-lg shadow-[#0F6E56]/25">
+            <Link to="/signup" className="btn-press shine-hover inline-flex items-center gap-2 bg-[#0F6E56] text-white text-[15px] font-medium px-7 py-3.5 rounded-xl hover:bg-[#0a5a44] transition-colors shadow-lg shadow-[#0F6E56]/25">
               Get started — it's free
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </Link>
-            <Link to="/login" className="btn-press inline-flex items-center gap-2 text-[15px] text-[#3A3A35] border border-[#DDD9D0] bg-white px-7 py-3.5 rounded-xl hover:border-[#0F6E56]/40 hover:bg-[#F0FDF9] transition-colors">
+            <Link to="/login" className="btn-press shine-hover inline-flex items-center gap-2 text-[15px] text-[#3A3A35] border border-[#DDD9D0] bg-white px-7 py-3.5 rounded-xl hover:border-[#0F6E56]/40 hover:bg-[#F0FDF9] transition-colors">
               Sign in
             </Link>
           </div>
@@ -128,6 +247,8 @@ function Landing() {
               </div>
             ))}
           </div>
+          </div>
+          <HeroPhoneMockup />
         </div>
         <div className="animate-fade-in delay-500 absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
           <span className="text-xs text-[#7A7A72] tracking-widest uppercase">Scroll</span>
@@ -291,6 +412,8 @@ function Landing() {
         </div>
       </section>
 
+      <TestimonialsSection />
+
       {/* ── SECTORS ── */}
       <section id="sectors" className="py-24 sm:py-32 px-5 bg-[#ECEAE4]">
         <div className="mx-auto max-w-6xl">
@@ -325,6 +448,8 @@ function Landing() {
           </div>
         </div>
       </section>
+
+      <FaqSection />
 
       {/* ── CONTACT ── */}
       <section className="py-24 sm:py-32 px-5">
@@ -362,7 +487,7 @@ function Landing() {
                 className="w-full bg-white border border-[#DDD9D0] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#0F6E56] transition-colors resize-none" />
             </div>
             <button type="submit"
-              className="btn-press w-full bg-[#0F6E56] text-white py-3 rounded-xl font-medium text-sm hover:bg-[#0a5a44] transition-colors shadow-lg shadow-[#0F6E56]/20">
+              className="btn-press shine-hover w-full bg-[#0F6E56] text-white py-3 rounded-xl font-medium text-sm hover:bg-[#0a5a44] transition-colors shadow-lg shadow-[#0F6E56]/20">
               Send message
             </button>
           </form>
@@ -389,7 +514,7 @@ function Landing() {
                 Free to start. Set up in under 2 minutes. No technical knowledge needed.
               </p>
               <Link to="/signup"
-                className="btn-press inline-flex items-center gap-2 bg-white text-[#0E0E0C] px-8 py-3.5 rounded-xl font-medium text-sm hover:bg-[#F0EDE6] transition-colors">
+                className="btn-press shine-hover inline-flex items-center gap-2 bg-white text-[#0E0E0C] px-8 py-3.5 rounded-xl font-medium text-sm hover:bg-[#F0EDE6] transition-colors">
                 Create your account →
               </Link>
             </div>

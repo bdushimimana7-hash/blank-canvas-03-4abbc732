@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { PossacLogo } from "@/components/Brand";
@@ -26,6 +26,10 @@ export default function StatusPage() {
   const [removing, setRemoving] = useState(false);
   const [removed, setRemoved] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [calledPulse, setCalledPulse] = useState(false);
+  const lastStatus = useRef<string | null>(null);
+  const touchStart = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     if (removed) return;
@@ -38,6 +42,11 @@ export default function StatusPage() {
       return;
     }
     setData(payload);
+    if (payload.status === "called" && lastStatus.current && lastStatus.current !== "called") {
+      setCalledPulse(true);
+      window.setTimeout(() => setCalledPulse(false), 3000);
+    }
+    lastStatus.current = payload.status;
     if (payload?.businessName) document.title = `${payload.businessName} — your place in line`;
   }, [entryId, removed]);
 
@@ -47,6 +56,30 @@ export default function StatusPage() {
     const interval = window.setInterval(refresh, 3000);
     return () => window.clearInterval(interval);
   }, [refresh]);
+
+  useEffect(() => {
+    const onTouchStart = (e: TouchEvent) => {
+      if (window.scrollY === 0) touchStart.current = e.touches[0].clientY;
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (touchStart.current == null) return;
+      const diff = e.changedTouches[0].clientY - touchStart.current;
+      touchStart.current = null;
+      if (diff > 70 && window.scrollY === 0) refresh();
+    };
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [refresh]);
+
+  const sharePosition = async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  };
 
   const handlePushback = async (mins: 15 | 30 | 45) => {
     setActionLoading(true);
@@ -115,7 +148,8 @@ export default function StatusPage() {
   const isWaiting = data.status === "waiting";
 
   return (
-    <div className="min-h-screen bg-[#F7F5F0]">
+    <div className="route-fade min-h-screen bg-[#F7F5F0]">
+      {calledPulse && <div className="fixed inset-0 z-[80] animate-ping bg-[#0F6E56]/70" />}
       {isCalled && (
         <div className="w-full bg-[#0F6E56] text-white px-5 py-4 text-center text-sm font-semibold">
           🎉 It's your turn — please come in now
@@ -140,6 +174,18 @@ export default function StatusPage() {
                 #{data.position}
               </div>
               <div className="mt-1 text-sm text-[#7A7A72]">in the queue</div>
+              <div className="mt-6 text-left">
+                <div className="mb-2 flex items-center justify-between text-xs text-[#7A7A72]">
+                  <span>Progress to your turn</span>
+                  <span className="tabular-nums">#{data.position} of {Math.max(data.position + data.ahead, data.position)}</span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-full bg-[#ECEAE4]">
+                  <div
+                    className="h-full rounded-full bg-[#0F6E56] transition-all duration-500"
+                    style={{ width: `${Math.max(8, Math.min(100, ((Math.max(data.position + data.ahead, data.position) - data.ahead) / Math.max(data.position + data.ahead, data.position)) * 100))}%` }}
+                  />
+                </div>
+              </div>
 
               <div className="mt-6 grid grid-cols-2 gap-3 text-left">
                 <div className="rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] p-3">
@@ -250,7 +296,11 @@ export default function StatusPage() {
           </div>
         )}
 
-        <p className="mt-6 text-xs text-[#7A7A72] text-center">This page updates automatically every few seconds.</p>
+        <button onClick={sharePosition} className="mt-4 w-full rounded-2xl border border-[#DDD9D0] bg-white px-5 py-4 text-sm font-medium text-[#0E0E0C] shadow-sm transition-colors hover:bg-[#E8F5F1] hover:text-[#0F6E56]">
+          {copied ? "Link copied" : "Share your position"}
+        </button>
+
+        <p className="mt-6 text-xs text-[#7A7A72] text-center">This page updates automatically. Pull down to refresh on mobile.</p>
       </div>
     </div>
   );

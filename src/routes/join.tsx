@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PossacLogo } from "@/components/Brand";
+import { CheckCircle2, Store } from "lucide-react";
 
-interface BizInfo { id: string; name: string }
+interface BizInfo { id: string; name: string; queueSize?: number; waiting?: number; currentWaiting?: number }
+interface JoinSuccess { entryId: string; position: number; waitMinutes: number }
 
 export default function JoinPage() {
   const { businessId = "" } = useParams();
@@ -17,6 +19,7 @@ export default function JoinPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState<JoinSuccess | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -54,7 +57,7 @@ export default function JoinPage() {
     const { data, error } = await supabase.functions.invoke("public-queue", {
       body: { action: "join", data: { businessId, name: name.trim(), phone: phone.trim() } },
     });
-    const payload = data as { entryId?: string; error?: string };
+    const payload = data as { entryId?: string; position?: number; waitMinutes?: number; error?: string };
     if (error || payload?.error || !payload?.entryId) {
       setError(payload?.error ?? error?.message ?? "Could not join the queue. Please try again.");
       setSubmitting(false);
@@ -66,7 +69,19 @@ export default function JoinPage() {
         JSON.stringify({ entryId: payload.entryId, at: Date.now() }),
       );
     } catch { /* ignore */ }
-    navigate(`/status/${payload.entryId}`, { replace: true });
+    let statusPayload: { position?: number; waitMinutes?: number } = {};
+    try {
+      const { data: statusData } = await supabase.functions.invoke("public-queue", {
+        body: { action: "status", data: { entryId: payload.entryId } },
+      });
+      statusPayload = (statusData ?? {}) as { position?: number; waitMinutes?: number };
+    } catch { /* status page will continue polling */ }
+    setSuccess({
+      entryId: payload.entryId,
+      position: payload.position ?? statusPayload.position ?? 1,
+      waitMinutes: payload.waitMinutes ?? statusPayload.waitMinutes ?? 0,
+    });
+    setSubmitting(false);
   };
 
   if (loading) {
@@ -83,14 +98,50 @@ export default function JoinPage() {
     );
   }
 
+  if (success) {
+    return (
+      <div className="route-fade min-h-screen bg-[#F7F5F0] px-5 py-8">
+        <div className="mx-auto max-w-md">
+          <div className="flex justify-center mb-8"><PossacLogo /></div>
+          <div className="rounded-[28px] border border-[#DDD9D0] bg-white p-8 text-center shadow-sm">
+            <CheckCircle2 className="mx-auto h-14 w-14 text-[#0F6E56]" />
+            <h1 className="font-display mt-5 text-3xl font-bold text-[#0E0E0C]">You're in!</h1>
+            <p className="mt-2 text-sm leading-6 text-[#7A7A72]">Go about your day — we'll text you when you're close.</p>
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl bg-[#E8F5F1] p-4">
+                <div className="text-xs text-[#7A7A72]">Position</div>
+                <div className="font-display text-4xl font-extrabold text-[#0F6E56]">#{success.position}</div>
+              </div>
+              <div className="rounded-2xl bg-[#F7F5F0] p-4">
+                <div className="text-xs text-[#7A7A72]">Estimated wait</div>
+                <div className="font-display text-4xl font-extrabold text-[#0E0E0C]">{success.waitMinutes}<span className="text-base">m</span></div>
+              </div>
+            </div>
+            <Button onClick={() => navigate(`/status/${success.entryId}`, { replace: true })} className="shine-hover mt-7 h-12 w-full rounded-xl">
+              View my place in line
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const queueSize = biz.currentWaiting ?? biz.waiting ?? biz.queueSize ?? 0;
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="route-fade min-h-screen bg-[#F7F5F0]">
       <div className="max-w-md mx-auto px-5 py-8">
         <div className="flex justify-center mb-6"><PossacLogo /></div>
-        <h1 className="text-2xl font-semibold tracking-tight text-center">{biz.name}</h1>
-        <p className="text-sm text-muted-foreground text-center mt-1">Join the queue from your phone.</p>
+        <div className="text-center">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#0F6E56] text-white shadow-lg shadow-[#0F6E56]/20">
+            <Store className="h-8 w-8" />
+          </div>
+          <h1 className="font-display mt-5 text-4xl font-bold tracking-tight text-[#0E0E0C]">{biz.name}</h1>
+          <p className="mt-2 text-sm font-medium text-[#0F6E56]">{queueSize} people currently waiting</p>
+          <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-[#7A7A72]">You won't need to stay here — we'll SMS you when it's your turn.</p>
+        </div>
 
-        <form onSubmit={onSubmit} className="mt-8 space-y-5">
+        <form onSubmit={onSubmit} className="mt-8 space-y-5 rounded-[28px] border border-[#DDD9D0] bg-white p-5 shadow-sm">
           {error && (
             <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
@@ -103,11 +154,14 @@ export default function JoinPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="phone">Phone number</Label>
-            <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)}
-              inputMode="tel" className="h-12 text-base" placeholder="07XXXXXXXX — optional" />
+            <div className="flex h-12 items-center rounded-md border border-input bg-background px-3 focus-within:border-[#0F6E56]">
+              <span className="mr-2 text-lg">🇷🇼</span>
+              <input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)}
+                inputMode="tel" className="h-full flex-1 bg-transparent text-base outline-none" placeholder="07X XXX XXXX" />
+            </div>
             <p className="text-xs text-muted-foreground">Optional. Only used to notify you when it's your turn.</p>
           </div>
-          <Button type="submit" disabled={submitting} className="w-full h-14 text-base">
+          <Button type="submit" disabled={submitting} className="shine-hover w-full h-14 rounded-xl text-base">
             {submitting ? "Joining…" : "Join the queue"}
           </Button>
         </form>

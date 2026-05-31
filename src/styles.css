@@ -86,6 +86,17 @@
 
   html { scroll-behavior: smooth; }
 
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 20%, transparent);
+    color: var(--foreground);
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ring) 70%, white);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--ring) 14%, transparent);
+  }
+
   body {
     font-family: 'DM Sans', system-ui, sans-serif;
     background-color: var(--color-background);
@@ -177,7 +188,55 @@
   transform: scale(0.97);
 }
 
+.shine-hover {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.shine-hover::after {
+  content: '';
+  position: absolute;
+  inset: -60% auto -60% -45%;
+  width: 35%;
+  transform: rotate(18deg) translateX(-140%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent);
+  transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: -1;
+}
+.shine-hover:hover::after {
+  transform: rotate(18deg) translateX(520%);
+}
+
+.route-fade {
+  animation: routeFade 0.2s ease both;
+}
+
+@keyframes routeFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes queueFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.queue-row-animate {
+  animation: queueFadeIn 0.24s ease both;
+  transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--primary) 28%, var(--border));
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--primary) 45%, var(--border));
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
