@@ -1,8 +1,3 @@
-bash
-
-cat /tmp/queue_new.tsx
-Output
-
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
