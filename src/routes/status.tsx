@@ -7,9 +7,11 @@ interface StatusData {
   entryId: string;
   name: string;
   status: "waiting" | "called" | "served" | "no_show" | string;
-  position: number;
-  ahead: number;
-  waitMinutes: number;
+  position: number;       // original join position (doesn't change)
+  livePosition: number;   // current live position (updates as queue moves)
+  ahead: number;          // number of people currently waiting ahead
+  totalWaiting: number;   // total people currently waiting
+  waitMinutes: number;    // calculated: ahead × avg_service_mins
   businessName: string;
 }
 
@@ -17,10 +19,7 @@ export default function StatusPage() {
   const { entryId = "" } = useParams();
   const [data, setData] = useState<StatusData | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Self-manage state
   const [showPushback, setShowPushback] = useState(false);
-  const [pushbackMins, setPushbackMins] = useState<15 | 30 | 45 | null>(null);
   const [pushbackDone, setPushbackDone] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -51,7 +50,6 @@ export default function StatusPage() {
   }, [entryId, removed]);
 
   useEffect(() => { refresh(); }, [refresh]);
-
   useEffect(() => {
     const interval = window.setInterval(refresh, 3000);
     return () => window.clearInterval(interval);
@@ -128,12 +126,12 @@ export default function StatusPage() {
       <div className="min-h-screen bg-[#F7F5F0] flex flex-col items-center justify-center px-5 text-center">
         <PossacLogo className="mb-8" />
         <div className="bg-white border border-[#DDD9D0] rounded-2xl p-8 max-w-sm w-full shadow-sm">
-          <div className="h-12 w-12 rounded-full bg-[#F3F4F6] flex items-center justify-center mx-auto mb-4">
+          <div className="h-12 w-12 rounded-full bg-[#F7F5F0] flex items-center justify-center mx-auto mb-4">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7A7A72" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
           </div>
-          <h2 className="font-display text-lg font-semibold text-[#0E0E0C] mb-2" style={{ fontFamily: "'Syne', sans-serif" }}>
+          <h2 className="text-lg font-semibold text-[#0E0E0C] mb-2" style={{ fontFamily: "'Syne', sans-serif" }}>
             You've left the queue
           </h2>
           <p className="text-sm text-[#7A7A72]">You can rejoin anytime by scanning the QR code at {data.businessName}.</p>
@@ -147,114 +145,150 @@ export default function StatusPage() {
   const isNoShow  = data.status === "no_show";
   const isWaiting = data.status === "waiting";
 
+  // Use livePosition if available, fall back to position
+  const displayPosition = data.livePosition ?? data.position;
+  const displayAhead = data.ahead ?? 0;
+  const totalInQueue = data.totalWaiting ?? (displayAhead + (isWaiting ? 1 : 0));
+  const progressPct = totalInQueue > 0
+    ? Math.max(8, Math.min(98, ((totalInQueue - displayAhead) / totalInQueue) * 100))
+    : 50;
+
   return (
     <div className="route-fade min-h-screen bg-[#F7F5F0]">
-      {calledPulse && <div className="fixed inset-0 z-[80] animate-ping bg-[#0F6E56]/70" />}
+      {calledPulse && (
+        <div className="fixed inset-0 z-[80] pointer-events-none">
+          <div className="absolute inset-0 bg-[#0F6E56]/30 animate-ping" />
+        </div>
+      )}
+
       {isCalled && (
         <div className="w-full bg-[#0F6E56] text-white px-5 py-4 text-center text-sm font-semibold">
-          🎉 It's your turn — please come in now
+          It's your turn — please come in now
         </div>
       )}
 
       <div className="max-w-md mx-auto px-5 py-8">
         <div className="flex justify-center mb-6"><PossacLogo /></div>
-        <h1 className="font-display text-xl font-semibold tracking-tight text-center text-[#0E0E0C]"
+        <h1 className="text-xl font-semibold tracking-tight text-center text-[#0E0E0C]"
           style={{ fontFamily: "'Syne', sans-serif" }}>{data.businessName}</h1>
-        <p className="text-sm text-[#7A7A72] text-center mt-1">Hi {data.name} 👋</p>
+        <p className="text-sm text-[#7A7A72] text-center mt-1">Hi {data.name}</p>
 
-        {/* Main status card */}
-        <div className="mt-6 bg-white border border-[#DDD9D0] rounded-2xl p-6 text-center shadow-sm">
-          <StatusBadge status={data.status} />
+        {/* Main card */}
+        <div className="mt-6 bg-white border border-[#DDD9D0] rounded-2xl p-6 shadow-sm">
+          <div className="flex justify-center mb-4"><StatusBadge status={data.status} /></div>
 
           {!isServed && !isNoShow && (
             <>
-              <div className="mt-5 text-xs text-[#7A7A72] uppercase tracking-widest font-medium">You are</div>
-              <div className="mt-1 font-display text-6xl font-800 text-[#0E0E0C] tabular-nums leading-none"
-                style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>
-                #{data.position}
-              </div>
-              <div className="mt-1 text-sm text-[#7A7A72]">in the queue</div>
-              <div className="mt-6 text-left">
-                <div className="mb-2 flex items-center justify-between text-xs text-[#7A7A72]">
-                  <span>Progress to your turn</span>
-                  <span className="tabular-nums">#{data.position} of {Math.max(data.position + data.ahead, data.position)}</span>
+              {isCalled ? (
+                <div className="text-center py-4">
+                  <div className="text-5xl mb-3">🟢</div>
+                  <p className="text-lg font-bold text-[#0E0E0C]" style={{ fontFamily: "'Syne', sans-serif" }}>
+                    It's your turn!
+                  </p>
+                  <p className="text-sm text-[#7A7A72] mt-1">Please come in now. Staff is ready for you.</p>
                 </div>
-                <div className="h-3 overflow-hidden rounded-full bg-[#ECEAE4]">
-                  <div
-                    className="h-full rounded-full bg-[#0F6E56] transition-all duration-500"
-                    style={{ width: `${Math.max(8, Math.min(100, ((Math.max(data.position + data.ahead, data.position) - data.ahead) / Math.max(data.position + data.ahead, data.position)) * 100))}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-3 text-left">
-                <div className="rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] p-3">
-                  <div className="text-[10px] text-[#7A7A72] uppercase tracking-widest font-medium">Ahead of you</div>
-                  <div className="mt-1 font-display text-2xl font-700 text-[#0E0E0C] tabular-nums"
-                    style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>{data.ahead}</div>
-                </div>
-                <div className="rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] p-3">
-                  <div className="text-[10px] text-[#7A7A72] uppercase tracking-widest font-medium">Est. wait</div>
-                  <div className="mt-1 font-display text-2xl font-700 text-[#0E0E0C] tabular-nums"
-                    style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
-                    {data.waitMinutes}<span className="text-sm font-medium text-[#7A7A72] ml-1">min</span>
+              ) : displayPosition === 1 ? (
+                /* First in queue */
+                <div className="text-center py-4">
+                  <div className="text-xs text-[#7A7A72] uppercase tracking-widest font-medium mb-2">You are</div>
+                  <div className="text-5xl font-extrabold text-[#0F6E56] mb-2" style={{ fontFamily: "'Syne', sans-serif" }}>
+                    Next
                   </div>
+                  <p className="text-sm text-[#7A7A72]">You are first in line. Please stay nearby or come in now.</p>
                 </div>
-              </div>
+              ) : (
+                /* Normal waiting state */
+                <>
+                  <div className="text-center mb-5">
+                    <div className="text-xs text-[#7A7A72] uppercase tracking-widest font-medium mb-1">Your position</div>
+                    <div className="text-7xl font-extrabold text-[#0E0E0C] leading-none tabular-nums" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>
+                      #{displayPosition}
+                    </div>
+                    <div className="text-sm text-[#7A7A72] mt-1">in the queue</div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between text-xs text-[#7A7A72] mb-1.5">
+                      <span>Progress to your turn</span>
+                      <span className="tabular-nums">{displayAhead} {displayAhead === 1 ? "person" : "people"} ahead</span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-[#ECEAE4]">
+                      <div
+                        className="h-full rounded-full bg-[#0F6E56] transition-all duration-700"
+                        style={{ width: `${progressPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] p-4 text-center">
+                      <div className="text-[10px] text-[#7A7A72] uppercase tracking-widest font-medium mb-1">Ahead of you</div>
+                      <div className="text-3xl font-bold text-[#0E0E0C] tabular-nums" style={{ fontFamily: "'Syne', sans-serif" }}>
+                        {displayAhead}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] p-4 text-center">
+                      <div className="text-[10px] text-[#7A7A72] uppercase tracking-widest font-medium mb-1">Est. wait</div>
+                      <div className="text-3xl font-bold text-[#0E0E0C] tabular-nums" style={{ fontFamily: "'Syne', sans-serif" }}>
+                        {data.waitMinutes > 0 ? data.waitMinutes : "<1"}
+                        <span className="text-sm font-medium text-[#7A7A72] ml-1">min</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
 
           {isServed && (
-            <div className="mt-5">
-              <p className="text-2xl mb-2">✅</p>
-              <p className="text-sm text-[#7A7A72]">You've been served. Thank you for your patience!</p>
+            <div className="text-center py-4">
+              <div className="text-4xl mb-3">✓</div>
+              <p className="font-semibold text-[#0E0E0C] mb-1">You've been served</p>
+              <p className="text-sm text-[#7A7A72]">Thank you for your patience!</p>
             </div>
           )}
+
           {isNoShow && (
-            <div className="mt-5">
-              <p className="text-sm text-[#7A7A72]">You were marked as no-show. Ask staff to re-add you if needed.</p>
+            <div className="text-center py-4">
+              <p className="text-sm font-medium text-[#0E0E0C] mb-1">Marked as no-show</p>
+              <p className="text-sm text-[#7A7A72]">Ask staff to re-add you if needed.</p>
             </div>
           )}
         </div>
 
-        {/* ── SELF-MANAGE ACTIONS (waiting only) ── */}
+        {/* Self-manage actions */}
         {isWaiting && (
           <div className="mt-4 space-y-3">
-
-            {/* Push back spot */}
             {pushbackDone ? (
               <div className="bg-[#E8F5F1] border border-[#0F6E56]/20 rounded-2xl px-5 py-4 text-center">
-                <p className="text-sm font-medium text-[#0F6E56]">✓ Got it — your spot has been moved back.</p>
+                <p className="text-sm font-medium text-[#0F6E56]">Your spot has been moved back.</p>
                 <p className="text-xs text-[#7A7A72] mt-1">We'll alert you when you're close.</p>
               </div>
             ) : (
               <div className="bg-white border border-[#DDD9D0] rounded-2xl overflow-hidden shadow-sm">
                 <button
                   onClick={() => setShowPushback(!showPushback)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-sm font-medium text-[#0E0E0C] hover:bg-[#F7F5F0] transition-colors"
-                >
+                  className="w-full flex items-center justify-between px-5 py-4 text-sm font-medium text-[#0E0E0C] hover:bg-[#F7F5F0] transition-colors">
                   <span className="flex items-center gap-2">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A7A72" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     Running late? Push my spot back
                   </span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A7A72" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A7A72" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
                     style={{ transform: showPushback ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
                     <path d="M6 9l6 6 6-6"/>
                   </svg>
                 </button>
                 {showPushback && (
                   <div className="border-t border-[#DDD9D0] px-5 py-4">
-                    <p className="text-xs text-[#7A7A72] mb-3">How much time do you need?</p>
+                    <p className="text-xs text-[#7A7A72] mb-3">How much extra time do you need?</p>
                     <div className="grid grid-cols-3 gap-2">
                       {([15, 30, 45] as const).map((m) => (
-                        <button
-                          key={m}
-                          onClick={() => handlePushback(m)}
-                          disabled={actionLoading}
-                          className="h-10 rounded-xl border border-[#DDD9D0] text-sm font-medium text-[#0E0E0C] hover:border-[#0F6E56] hover:bg-[#E8F5F1] hover:text-[#0F6E56] transition-colors disabled:opacity-50"
-                        >
+                        <button key={m} onClick={() => handlePushback(m)} disabled={actionLoading}
+                          className="h-10 rounded-xl border border-[#DDD9D0] text-sm font-medium text-[#0E0E0C] hover:border-[#0F6E56] hover:bg-[#E8F5F1] hover:text-[#0F6E56] transition-colors disabled:opacity-50">
                           {m} min
                         </button>
                       ))}
@@ -264,12 +298,9 @@ export default function StatusPage() {
               </div>
             )}
 
-            {/* Remove from queue */}
             {!showRemoveConfirm ? (
-              <button
-                onClick={() => setShowRemoveConfirm(true)}
-                className="w-full text-sm text-[#7A7A72] hover:text-red-500 transition-colors py-2 text-center"
-              >
+              <button onClick={() => setShowRemoveConfirm(true)}
+                className="w-full text-sm text-[#7A7A72] hover:text-red-500 transition-colors py-2 text-center">
                 Remove me from the queue
               </button>
             ) : (
@@ -277,17 +308,12 @@ export default function StatusPage() {
                 <p className="text-sm font-medium text-[#0E0E0C] mb-1">Are you sure?</p>
                 <p className="text-xs text-[#7A7A72] mb-4">You will lose your spot and need to rejoin by scanning the QR code.</p>
                 <div className="flex gap-2">
-                  <button
-                    onClick={handleRemove}
-                    disabled={removing}
-                    className="flex-1 h-9 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
-                  >
+                  <button onClick={handleRemove} disabled={removing}
+                    className="flex-1 h-9 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50">
                     {removing ? "Removing…" : "Yes, remove me"}
                   </button>
-                  <button
-                    onClick={() => setShowRemoveConfirm(false)}
-                    className="flex-1 h-9 border border-[#DDD9D0] rounded-xl text-sm text-[#7A7A72] hover:bg-[#F7F5F0] transition-colors"
-                  >
+                  <button onClick={() => setShowRemoveConfirm(false)}
+                    className="flex-1 h-9 border border-[#DDD9D0] rounded-xl text-sm text-[#7A7A72] hover:bg-[#F7F5F0] transition-colors">
                     Cancel
                   </button>
                 </div>
@@ -296,11 +322,14 @@ export default function StatusPage() {
           </div>
         )}
 
-        <button onClick={sharePosition} className="mt-4 w-full rounded-2xl border border-[#DDD9D0] bg-white px-5 py-4 text-sm font-medium text-[#0E0E0C] shadow-sm transition-colors hover:bg-[#E8F5F1] hover:text-[#0F6E56]">
+        <button onClick={sharePosition}
+          className="mt-4 w-full rounded-2xl border border-[#DDD9D0] bg-white px-5 py-4 text-sm font-medium text-[#0E0E0C] shadow-sm hover:bg-[#E8F5F1] hover:text-[#0F6E56] transition-colors">
           {copied ? "Link copied" : "Share your position"}
         </button>
 
-        <p className="mt-6 text-xs text-[#7A7A72] text-center">This page updates automatically. Pull down to refresh on mobile.</p>
+        <p className="mt-6 text-xs text-[#7A7A72] text-center">
+          This page updates every few seconds. Pull down to refresh on mobile.
+        </p>
       </div>
     </div>
   );
@@ -309,14 +338,17 @@ export default function StatusPage() {
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; text: string }> = {
     waiting: { label: "Waiting",  bg: "bg-[#E8F5F1]", text: "text-[#0F6E56]" },
-    called:  { label: "Called",   bg: "bg-blue-50",   text: "text-blue-600" },
+    called:  { label: "Called",   bg: "bg-amber-50",  text: "text-amber-600" },
     served:  { label: "Served",   bg: "bg-green-50",  text: "text-green-700" },
-    no_show: { label: "No-show",  bg: "bg-[#F3F4F6]", text: "text-[#7A7A72]" },
+    no_show: { label: "No-show",  bg: "bg-[#F3F4F6]", text: "text-[#7A7A72]"  },
   };
   const v = map[status] ?? map.waiting;
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${v.bg} ${v.text}`}>
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${v.bg} ${v.text}`}>
       {v.label}
     </span>
   );
 }
+
+status done
+Done
