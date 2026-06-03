@@ -1,10 +1,15 @@
+bash
+
+cat /tmp/dashboard_final.tsx
+Output
+
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
 import { sectorLabel } from "@/lib/sectors";
-import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle, LayoutDashboard, Menu, X, LogOut, TrendingUp, Users, Clock, ArrowRight, Zap } from "lucide-react";
+import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle, LayoutDashboard, Menu, X, LogOut, ArrowRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import QRCode from "qrcode";
 
@@ -43,11 +48,9 @@ export default function Dashboard() {
     if (!businessId) return;
     const today = new Date().toISOString().slice(0, 10);
     (async () => {
-      const { data: q } = await supabase
-        .from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
+      const { data: q } = await supabase.from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
       if (!q) { setEntries([]); return; }
-      const { data } = await supabase
-        .from("queue_entries").select("status, added_at, served_at").eq("queue_id", q.id);
+      const { data } = await supabase.from("queue_entries").select("status, added_at, served_at").eq("queue_id", q.id);
       setEntries((data ?? []) as Entry[]);
     })();
   }, [businessId]);
@@ -58,15 +61,11 @@ export default function Dashboard() {
     since.setDate(since.getDate() - 7);
     const sinceDate = since.toISOString().slice(0, 10);
     (async () => {
-      const { data: qs } = await supabase
-        .from("queues").select("id, date").eq("business_id", businessId).gte("date", sinceDate);
+      const { data: qs } = await supabase.from("queues").select("id, date").eq("business_id", businessId).gte("date", sinceDate);
       const queueRows = (qs ?? []) as QueueDay[];
       setRecentQueues(queueRows);
       if (queueRows.length === 0) { setRecent([]); return; }
-      const { data } = await supabase
-        .from("queue_entries")
-        .select("status, added_at, served_at, queue_id")
-        .in("queue_id", queueRows.map((r) => r.id));
+      const { data } = await supabase.from("queue_entries").select("status, added_at, served_at, queue_id").in("queue_id", queueRows.map((r) => r.id));
       setRecent((data ?? []) as RecentEntry[]);
     })();
   }, [businessId]);
@@ -74,24 +73,18 @@ export default function Dashboard() {
   useEffect(() => {
     if (!businessId) return;
     (async () => {
-      const { data: biz } = await supabase
-        .from("businesses")
+      const { data: biz } = await supabase.from("businesses")
         .select("onboarding_complete, sms_template_add, sms_template_call, sms_template_headsup, sms_template_first")
-        .eq("id", businessId)
-        .maybeSingle();
+        .eq("id", businessId).maybeSingle();
       if (!biz || biz.onboarding_complete) { setOnboarding(null); return; }
       const smsCustomized =
         biz.sms_template_add !== DEFAULT_TEMPLATES.sms_template_add ||
         biz.sms_template_call !== DEFAULT_TEMPLATES.sms_template_call ||
         biz.sms_template_headsup !== DEFAULT_TEMPLATES.sms_template_headsup ||
         biz.sms_template_first !== DEFAULT_TEMPLATES.sms_template_first;
-      const { count: staffCount } = await supabase
-        .from("staff_profiles").select("id", { count: "exact", head: true })
-        .eq("business_id", businessId).neq("role", "owner");
+      const { count: staffCount } = await supabase.from("staff_profiles").select("id", { count: "exact", head: true }).eq("business_id", businessId).neq("role", "owner");
       const hasStaff = (staffCount ?? 0) > 0;
-      const { count: entryCount } = await supabase
-        .from("queue_entries").select("id", { count: "exact", head: true })
-        .eq("business_id", businessId);
+      const { count: entryCount } = await supabase.from("queue_entries").select("id", { count: "exact", head: true }).eq("business_id", businessId);
       const hasEntry = (entryCount ?? 0) > 0;
       if (smsCustomized && hasStaff && hasEntry) {
         await supabase.from("businesses").update({ onboarding_complete: true }).eq("id", businessId);
@@ -104,13 +97,10 @@ export default function Dashboard() {
   const total = entries.length;
   const waiting = entries.filter((e) => e.status === "waiting").length;
   const served = entries.filter((e) => e.status === "served").length;
-  const noShow = entries.filter((e) => e.status === "no_show").length;
   const called = entries.filter((e) => e.status === "called").length;
-  const servedDurations = entries
-    .filter((e) => e.status === "served" && e.served_at)
+  const servedDurations = entries.filter((e) => e.status === "served" && e.served_at)
     .map((e) => (new Date(e.served_at!).getTime() - new Date(e.added_at).getTime()) / 60000);
-  const avgWait = servedDurations.length
-    ? Math.round(servedDurations.reduce((a, b) => a + b, 0) / servedDurations.length) : 0;
+  const avgWait = servedDurations.length ? Math.round(servedDurations.reduce((a, b) => a + b, 0) / servedDurations.length) : 0;
 
   const hours = Array.from({ length: 14 }, (_, i) => i + 7);
   const chartData = hours.map((h) => ({
@@ -135,8 +125,6 @@ export default function Dashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || businessName || "there";
-
-  // Week performance
   const weekTotal = last7.reduce((a, b) => a + b.total, 0);
   const weekServed = last7.reduce((a, b) => a + b.served, 0);
   const serviceRate = weekTotal > 0 ? Math.round((weekServed / weekTotal) * 100) : 0;
@@ -151,51 +139,32 @@ export default function Dashboard() {
       <main className="mx-auto w-full max-w-5xl px-5 py-8 lg:ml-64">
 
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-medium text-[#7A7A72] uppercase tracking-widest mb-1">{businessName ?? "—"} · {sectorLabel(sector)}</p>
-              <h1 className="text-2xl font-bold text-[#0E0E0C] tracking-tight" style={{ fontFamily: "'Syne', sans-serif" }}>
-                {greeting}, {firstName} 👋
-              </h1>
-              <p className="text-sm text-[#7A7A72] mt-1">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
-            </div>
-            <Link to="/queue"
-              className="shrink-0 inline-flex items-center gap-2 bg-[#0F6E56] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#0a5a44] transition-all hover:-translate-y-0.5 shadow-lg shadow-[#0F6E56]/20">
-              <Zap className="h-4 w-4" />
-              Live Queue
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium text-[#7A7A72] uppercase tracking-widest mb-1">{businessName ?? "—"} · {sectorLabel(sector)}</p>
+            <h1 className="text-2xl font-bold text-[#0E0E0C] tracking-tight" style={{ fontFamily: "'Syne', sans-serif" }}>
+              {greeting}, {firstName}
+            </h1>
+            <p className="text-sm text-[#7A7A72] mt-1">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
           </div>
+          <Link to="/queue" className="shrink-0 inline-flex items-center gap-2 bg-[#0F6E56] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#0a5a44] transition-all hover:-translate-y-0.5 shadow-lg shadow-[#0F6E56]/20">
+            Live Queue <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
 
-        {onboarding?.show && (
-          <OnboardingCard smsCustomized={onboarding.smsCustomized} hasStaff={onboarding.hasStaff} hasEntry={onboarding.hasEntry} />
-        )}
+        {/* QR share — at the top so businesses always see it */}
+        {businessId && <ShareQueueCard businessId={businessId} businessName={businessName ?? "queue"} />}
 
-        {/* Today's stats */}
-        <div className="mb-2">
-          <h2 className="text-xs font-semibold text-[#7A7A72] uppercase tracking-widest">Today at a glance</h2>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-          <StatCard label="Total" value={total} icon={<Users className="h-4 w-4" />} />
-          <StatCard label="Waiting" value={waiting} tone="info" icon={<Clock className="h-4 w-4" />} />
-          <StatCard label="Called" value={called} tone="warning" icon={<Zap className="h-4 w-4" />} />
-          <StatCard label="Served" value={served} tone="success" icon={<Check className="h-4 w-4" />} />
-          <StatCard label="Avg wait" value={avgWait} suffix="min" icon={<TrendingUp className="h-4 w-4" />} />
-        </div>
-
-        {/* Live queue CTA when there are waiting customers */}
+        {/* Live alert */}
         {waiting > 0 && (
-          <div className="mb-6 rounded-2xl bg-[#0F6E56] p-5 flex items-center justify-between gap-4 shadow-lg shadow-[#0F6E56]/20">
+          <div className="mt-6 rounded-2xl bg-[#0F6E56] p-5 flex items-center justify-between gap-4 shadow-lg shadow-[#0F6E56]/20">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
                 <span className="text-xs font-medium text-white/70 uppercase tracking-widest">Live now</span>
               </div>
               <p className="text-white font-semibold text-lg" style={{ fontFamily: "'Syne', sans-serif" }}>
-                {waiting} {waiting === 1 ? "customer" : "customers"} waiting
-                {called > 0 && `, ${called} called`}
+                {waiting} {waiting === 1 ? "customer" : "customers"} waiting{called > 0 && `, ${called} called`}
               </p>
             </div>
             <Link to="/queue" className="shrink-0 bg-white text-[#0F6E56] px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#F0EDE6] transition-colors">
@@ -204,9 +173,31 @@ export default function Dashboard() {
           </div>
         )}
 
+        {onboarding?.show && (
+          <div className="mt-6">
+            <OnboardingCard smsCustomized={onboarding.smsCustomized} hasStaff={onboarding.hasStaff} hasEntry={onboarding.hasEntry} />
+          </div>
+        )}
+
+        {/* Today stats */}
+        <div className="mt-6 mb-2">
+          <h2 className="text-xs font-semibold text-[#7A7A72] uppercase tracking-widest">Today at a glance</h2>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+          {[
+            { label: "Total", value: total, tone: "default" },
+            { label: "Waiting", value: waiting, tone: "info" },
+            { label: "Called", value: called, tone: "warning" },
+            { label: "Served", value: served, tone: "success" },
+            { label: "Avg wait", value: avgWait, suffix: "min", tone: "default" },
+          ].map((s) => (
+            <StatCard key={s.label} label={s.label} value={s.value} suffix={(s as any).suffix} tone={s.tone as any} />
+          ))}
+        </div>
+
         {total === 0 && <EmptyToday />}
 
-        {/* Week summary strip */}
+        {/* Week summary */}
         {weekTotal > 0 && (
           <div className="mb-6 grid grid-cols-3 gap-3">
             {[
@@ -238,8 +229,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#F0EDE6" vertical={false} />
                 <XAxis dataKey="hour" stroke="#7A7A72" fontSize={10} tickLine={false} axisLine={false} />
                 <YAxis stroke="#7A7A72" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip cursor={{ fill: "#E8F5F1", radius: 6 }}
-                  contentStyle={{ background: "#fff", border: "1px solid #DDD9D0", borderRadius: 10, fontSize: 12 }} />
+                <Tooltip cursor={{ fill: "#E8F5F1", radius: 6 }} contentStyle={{ background: "#fff", border: "1px solid #DDD9D0", borderRadius: 10, fontSize: 12 }} />
                 <Bar dataKey="count" fill="#0F6E56" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -281,7 +271,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {businessId && <ShareQueueCard businessId={businessId} businessName={businessName ?? "queue"} />}
       </main>
     </div>
   );
@@ -310,7 +299,9 @@ export function DashboardSidebar({ open, onClose, active }: { open: boolean; onC
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${isActive ? "bg-[#0F6E56] text-white shadow-sm" : "text-[#3A3A35] hover:bg-[#E8F5F1] hover:text-[#0F6E56]"}`}>
                 <item.icon className="h-4 w-4 shrink-0" />
                 {item.label}
-                {item.key === "queue" && <span className="ml-auto h-2 w-2 rounded-full bg-[#0F6E56] animate-pulse" style={{ background: isActive ? "white" : "#0F6E56" }} />}
+                {item.key === "queue" && (
+                  <span className="ml-auto h-2 w-2 rounded-full animate-pulse" style={{ background: isActive ? "white" : "#0F6E56" }} />
+                )}
               </Link>
             );
           })}
@@ -330,7 +321,7 @@ function EmptyToday() {
   return (
     <div className="mb-6 rounded-2xl border border-dashed border-[#DDD9D0] bg-white p-10 text-center">
       <div className="mx-auto h-14 w-14 rounded-2xl bg-[#E8F5F1] flex items-center justify-center mb-4">
-        <Users className="h-6 w-6 text-[#0F6E56]" />
+        <ListOrdered className="h-6 w-6 text-[#0F6E56]" />
       </div>
       <h3 className="font-semibold text-[#0E0E0C] mb-1">No entries today yet</h3>
       <p className="text-sm text-[#7A7A72] mb-5">Your live stats and chart will fill in as customers join the queue.</p>
@@ -341,22 +332,20 @@ function EmptyToday() {
   );
 }
 
-function StatCard({ label, value, suffix, tone, icon }: { label: string; value: number | string; suffix?: string; tone?: "info" | "success" | "muted" | "warning"; icon?: React.ReactNode }) {
+function StatCard({ label, value, suffix, tone }: { label: string; value: number | string; suffix?: string; tone?: "info" | "success" | "warning" | "default" }) {
   const styles = {
-    info: { bg: "bg-blue-50", text: "text-blue-600", icon: "text-blue-400" },
-    success: { bg: "bg-[#E8F5F1]", text: "text-[#0F6E56]", icon: "text-[#0F6E56]" },
-    muted: { bg: "bg-[#F7F5F0]", text: "text-[#7A7A72]", icon: "text-[#7A7A72]" },
-    warning: { bg: "bg-amber-50", text: "text-amber-600", icon: "text-amber-400" },
-    default: { bg: "bg-white", text: "text-[#0E0E0C]", icon: "text-[#7A7A72]" },
+    info:    { bg: "bg-blue-50",    text: "text-blue-600" },
+    success: { bg: "bg-[#E8F5F1]", text: "text-[#0F6E56]" },
+    warning: { bg: "bg-amber-50",  text: "text-amber-600" },
+    default: { bg: "bg-white",     text: "text-[#0E0E0C]" },
   };
   const s = styles[tone ?? "default"];
   return (
     <div className={`${s.bg} border border-[#DDD9D0] rounded-2xl p-4 shadow-sm`}>
-      <div className={`${s.icon} mb-2`}>{icon}</div>
+      <div className="text-xs font-medium text-[#7A7A72] uppercase tracking-widest mb-2">{label}</div>
       <div className={`text-2xl font-bold tabular-nums ${s.text}`} style={{ fontFamily: "'Syne', sans-serif" }}>
-        {value}{suffix && <span className="text-sm font-medium ml-1 opacity-70">{suffix}</span>}
+        {value}{suffix && <span className="text-sm font-medium ml-1 opacity-60">{suffix}</span>}
       </div>
-      <div className="text-xs text-[#7A7A72] mt-0.5">{label}</div>
     </div>
   );
 }
@@ -371,12 +360,12 @@ function OnboardingCard({ smsCustomized, hasStaff, hasEntry }: { smsCustomized: 
   const completed = steps.filter((s) => s.done).length;
   const pct = Math.round((completed / steps.length) * 100);
   return (
-    <div className="mb-6 bg-white border border-[#DDD9D0] rounded-2xl p-5 shadow-sm">
+    <div className="bg-white border border-[#DDD9D0] rounded-2xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-sm font-semibold text-[#0E0E0C]">Get started</h2>
         <span className="text-xs text-[#0F6E56] font-medium">{completed}/{steps.length} done</span>
       </div>
-      <p className="text-xs text-[#7A7A72] mb-4">Finish setting up your queue. This card disappears once you're done.</p>
+      <p className="text-xs text-[#7A7A72] mb-4">Finish setting up your queue. This card disappears once you are done.</p>
       <div className="h-1.5 w-full bg-[#F0EDE6] rounded-full overflow-hidden mb-4">
         <div className="h-full bg-[#0F6E56] transition-all duration-500 rounded-full" style={{ width: `${pct}%` }} />
       </div>
@@ -384,13 +373,9 @@ function OnboardingCard({ smsCustomized, hasStaff, hasEntry }: { smsCustomized: 
         {steps.map((s) => {
           const content = (
             <div className={`flex items-center gap-3 py-2 px-3 rounded-xl ${s.to && !s.done ? "hover:bg-[#E8F5F1]" : ""}`}>
-              {s.done ? (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0F6E56] text-white shrink-0">
-                  <Check className="h-3 w-3" />
-                </span>
-              ) : (
-                <Circle className="h-5 w-5 text-[#DDD9D0] shrink-0" />
-              )}
+              {s.done
+                ? <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0F6E56] text-white shrink-0"><Check className="h-3 w-3" /></span>
+                : <Circle className="h-5 w-5 text-[#DDD9D0] shrink-0" />}
               <span className={`text-sm ${s.done ? "text-[#7A7A72] line-through" : "text-[#0E0E0C] font-medium"}`}>{s.label}</span>
               {s.to && !s.done && <ArrowRight className="ml-auto h-3.5 w-3.5 text-[#0F6E56]" />}
             </div>
@@ -408,7 +393,7 @@ function ShareQueueCard({ businessId, businessName }: { businessId: string; busi
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!previewRef.current) return;
-    QRCode.toCanvas(previewRef.current, url, { width: 160, margin: 1, color: { dark: "#000000", light: "#ffffff" } });
+    QRCode.toCanvas(previewRef.current, url, { width: 140, margin: 1, color: { dark: "#000000", light: "#ffffff" } });
   }, [url]);
   const download = async () => {
     const dataUrl = await QRCode.toDataURL(url, { width: 1000, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
@@ -423,23 +408,23 @@ function ShareQueueCard({ businessId, businessName }: { businessId: string; busi
   return (
     <div className="bg-white border border-[#DDD9D0] rounded-2xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-sm font-semibold text-[#0E0E0C]">Share your queue</h2>
-        <span className="text-xs text-[#7A7A72]">Customers join in seconds</span>
+        <h2 className="text-sm font-semibold text-[#0E0E0C]">Your queue QR code</h2>
+        <span className="text-xs text-[#7A7A72]">Print and place at your entrance</span>
       </div>
-      <p className="text-xs text-[#7A7A72] mb-5">Print this QR and place it at your entrance. Anyone who scans it can join from their phone — no app needed.</p>
-      <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+      <p className="text-xs text-[#7A7A72] mb-5">Anyone who scans this joins your queue instantly — no app needed.</p>
+      <div className="flex flex-col sm:flex-row gap-5 items-center sm:items-start">
         <div className="shrink-0 bg-white p-3 rounded-xl border border-[#DDD9D0] shadow-sm">
           <canvas ref={previewRef} className="block" />
         </div>
         <div className="flex-1 w-full">
-          <div className="text-xs text-[#7A7A72] uppercase tracking-widest mb-1">Join link</div>
+          <div className="text-xs text-[#7A7A72] uppercase tracking-widest mb-1.5">Join link</div>
           <div className="rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] px-3 py-2.5 text-sm break-all font-mono text-[#0E0E0C]">{url}</div>
           <div className="mt-4 flex flex-wrap gap-3">
-            <button onClick={download} className="inline-flex items-center gap-2 bg-[#0F6E56] text-white text-sm font-medium px-4 h-9 rounded-xl hover:bg-[#0a5a44] transition-colors shadow-sm shadow-[#0F6E56]/20">
+            <button onClick={download} className="inline-flex items-center gap-2 bg-[#0F6E56] text-white text-sm font-medium px-4 h-9 rounded-xl hover:bg-[#0a5a44] transition-colors shadow-sm">
               Download QR
             </button>
             <button onClick={copy} className="inline-flex items-center gap-2 border border-[#DDD9D0] bg-white text-sm font-medium px-4 h-9 rounded-xl hover:bg-[#F7F5F0] transition-colors">
-              {copied ? "✓ Copied" : "Copy link"}
+              {copied ? "Copied" : "Copy link"}
             </button>
           </div>
         </div>
