@@ -440,13 +440,16 @@ function Landing() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
+
+              { n: "Banks & SACCOs", d: "Reduce crowding in branches during peak hours." },
+              { n: "Health facilities", d: "Help patients at clinics, health posts, and health centers wait without crowding the reception area." },
+              { n: "Government offices", d: "Help citizens plan their visit without wasting a full day." },
               { n: "Salons & Barbershops", d: "Keep clients informed while they wait elsewhere." },
               { n: "Pharmacies", d: "Let patients wait comfortably while prescriptions are prepared." },
-              { n: "Banks & SACCOs", d: "Reduce crowding in branches during peak hours." },
-              { n: "Government offices", d: "Help citizens plan their visit without wasting a full day." },
               { n: "Insurance companies", d: "Manage client flow without a physical waiting room." },
               { n: "Restaurants & cafés", d: "Seat guests when their table is actually ready." },
             ].map((s, i) => (
+
               <div key={s.n}
                 className="reveal bg-white border border-[#DDD9D0] rounded-2xl p-5 cursor-default hover:border-[#0F6E56]/30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300"
                 style={{ opacity: 0, transform: "translateY(24px)", transition: `opacity 0.6s ease ${(i % 3) * 80}ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) ${(i % 3) * 80}ms` }}>
