@@ -33,18 +33,49 @@ function fillTemplate(
     .replaceAll("{business}", vars.business);
 }
 
-async function sendPindoSms(phone: string, message: string) {
+async function sendPindoSms(
+  admin: ReturnType<typeof createClient>,
+  phone: string,
+  message: string,
+  meta: { businessId: string; messageType: "join" | "headsup" | "call" | "pushback" | "removal" | "other"; customerName: string },
+) {
   const apiKey = Deno.env.get("PINDO_API_KEY");
   const sender = Deno.env.get("PINDO_SENDER");
-  if (!apiKey || !sender) return;
+  let status: "sent" | "failed" = "sent";
+  let errMsg: string | null = null;
+  if (!apiKey || !sender) {
+    status = "failed";
+    errMsg = "SMS not configured";
+  } else {
+    try {
+      const res = await fetch("https://api.pindo.io/v1/sms/", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ to: phone, text: message, sender }),
+      });
+      if (!res.ok) {
+        status = "failed";
+        errMsg = `Pindo ${res.status}: ${await res.text()}`;
+        console.error(errMsg);
+      }
+    } catch (e) {
+      status = "failed";
+      errMsg = (e as Error).message;
+      console.error("Pindo send failed", e);
+    }
+  }
   try {
-    await fetch("https://api.pindo.io/v1/sms/", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ to: phone, text: message, sender }),
+    await admin.from("sms_logs").insert({
+      business_id: meta.businessId,
+      customer_name: meta.customerName,
+      customer_phone: phone,
+      message,
+      message_type: meta.messageType,
+      status,
+      error: errMsg,
     });
   } catch (e) {
-    console.error("Pindo send failed", e);
+    console.error("sms_logs insert failed", e);
   }
 }
 
@@ -119,7 +150,7 @@ Deno.serve(async (req) => {
         const tpl = position === 1 ? biz.sms_template_first : biz.sms_template_add;
         if (tpl) {
           const msg = fillTemplate(tpl, { name, position, wait, business: biz.name });
-          sendPindoSms(phone, msg);
+          sendPindoSms(admin, phone, msg, { businessId, messageType: "join", customerName: name });
         }
       }
 
@@ -223,7 +254,7 @@ Deno.serve(async (req) => {
         const { data: biz } = await admin
           .from("businesses").select("name").eq("id", entry.business_id).maybeSingle();
         const msg = `Hi ${entry.customer_name}, your spot has been moved to #${newPosition} at ${biz?.name ?? "the queue"}. Estimated wait: ${newWait} min. We'll alert you when you're close.`;
-        sendPindoSms(entry.customer_phone, msg);
+        sendPindoSms(admin, entry.customer_phone, msg, { businessId: entry.business_id, messageType: "pushback", customerName: entry.customer_name });
       }
 
       return json({ ok: true, newPosition, newWait });
@@ -247,7 +278,7 @@ Deno.serve(async (req) => {
         const { data: biz } = await admin
           .from("businesses").select("name").eq("id", entry.business_id).maybeSingle();
         const msg = `You have been removed from the queue at ${biz?.name ?? "the business"}. You can rejoin anytime by scanning the QR code.`;
-        sendPindoSms(entry.customer_phone, msg);
+        sendPindoSms(admin, entry.customer_phone, msg, { businessId: entry.business_id, messageType: "removal", customerName: entry.customer_name });
       }
 
       return json({ ok: true });

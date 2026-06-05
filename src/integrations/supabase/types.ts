@@ -151,6 +151,50 @@ export type Database = {
           },
         ]
       }
+      sms_logs: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_name: string
+          customer_phone: string
+          error: string | null
+          id: string
+          message: string
+          message_type: string
+          status: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          error?: string | null
+          id?: string
+          message?: string
+          message_type: string
+          status: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string
+          error?: string | null
+          id?: string
+          message?: string
+          message_type?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_logs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_profiles: {
         Row: {
           business_id: string

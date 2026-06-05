@@ -24,10 +24,17 @@ export function callSignup<T = unknown>(action: string, data: unknown = {}) {
 export async function sendSmsViaEdge(
   phone: string,
   message: string,
+  opts: { businessId?: string; messageType?: "join" | "headsup" | "call" | "pushback" | "removal" | "other"; customerName?: string } = {},
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { data, error } = await supabase.functions.invoke("send-sms", {
-      body: { phone, message },
+      body: {
+        phone,
+        message,
+        business_id: opts.businessId,
+        message_type: opts.messageType ?? "other",
+        customer_name: opts.customerName,
+      },
     });
     if (error) return { success: false, error: error.message };
     return (data as { success: boolean; error?: string }) ?? { success: false };
