@@ -346,9 +346,10 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide ${v.bg} ${v.text}`}>
       {v.label}
-    </span>
+        </span>
   );
 }
 
-status done
-Done
+// status done
+// Done
+
