@@ -14,6 +14,14 @@ import { callAdmin } from "@/lib/edge-functions";
 import { ArrowLeft, Send, Trash2 } from "lucide-react";
 
 interface StaffRow { id: string; user_id: string; full_name: string; role: string; }
+interface SmsLogRow {
+  id: string;
+  customer_name: string;
+  customer_phone: string;
+  message_type: string;
+  status: string;
+  created_at: string;
+}
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -26,6 +34,7 @@ export default function SettingsPage() {
   const [tplCall, setTplCall] = useState("");
   const [headsupPos, setHeadsupPos] = useState<number>(3);
   const [staff, setStaff] = useState<StaffRow[]>([]);
+  const [smsLogs, setSmsLogs] = useState<SmsLogRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [inviteName, setInviteName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
@@ -54,6 +63,13 @@ export default function SettingsPage() {
     const { data: sp } = await supabase
       .from("staff_profiles").select("id, user_id, full_name, role").eq("business_id", businessId);
     setStaff((sp ?? []) as StaffRow[]);
+    const { data: logs } = await supabase
+      .from("sms_logs")
+      .select("id, customer_name, customer_phone, message_type, status, created_at")
+      .eq("business_id", businessId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setSmsLogs((logs ?? []) as SmsLogRow[]);
   };
 
   useEffect(() => { reload(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [businessId]);
@@ -217,6 +233,42 @@ export default function SettingsPage() {
         <section className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
           <SectionHeading title="Danger Zone" />
           <p className="mt-2 text-sm text-muted-foreground">Removing staff access is permanent for that staff profile. Business deletion is handled by support.</p>
+        </section>
+
+        <section className="bg-white border border-[#DDD9D0] rounded-2xl p-6 shadow-sm">
+          <SectionHeading title="SMS Logs" />
+          <p className="text-sm text-muted-foreground mt-1">Most recent 50 messages sent from this business.</p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-muted-foreground">
+                <tr>
+                  <th className="text-left font-medium p-2">Time</th>
+                  <th className="text-left font-medium p-2">Customer</th>
+                  <th className="text-left font-medium p-2">Phone</th>
+                  <th className="text-left font-medium p-2">Type</th>
+                  <th className="text-left font-medium p-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {smsLogs.length === 0 && (
+                  <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">No messages yet.</td></tr>
+                )}
+                {smsLogs.map((l) => (
+                  <tr key={l.id} className="border-t">
+                    <td className="p-2 text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleString()}</td>
+                    <td className="p-2">{l.customer_name || "—"}</td>
+                    <td className="p-2 text-muted-foreground">{l.customer_phone || "—"}</td>
+                    <td className="p-2"><span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-muted">{l.message_type}</span></td>
+                    <td className="p-2">
+                      <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${l.status === "sent" ? "bg-[#E8F5F1] text-[#0F6E56]" : "bg-red-50 text-red-600"}`}>
+                        {l.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       </main>
     </div>
