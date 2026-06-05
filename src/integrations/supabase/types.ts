@@ -220,6 +220,14 @@ export type Database = {
         Returns: boolean
       }
       is_superadmin: { Args: { _user_id: string }; Returns: boolean }
+      shift_queue_positions: {
+        Args: {
+          _new_position: number
+          _old_position: number
+          _queue_id: string
+        }
+        Returns: undefined
+      }
       user_can_access_business: {
         Args: { _business_id: string; _user_id: string }
         Returns: boolean
