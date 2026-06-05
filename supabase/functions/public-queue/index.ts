@@ -205,18 +205,11 @@ Deno.serve(async (req) => {
 
       // Shift entries between old and new position forward by 1
       if (newPosition > entry.position) {
-        const { data: toShift } = await admin
-          .from("queue_entries")
-          .select("id, position")
-          .eq("queue_id", entry.queue_id)
-          .eq("status", "waiting")
-          .gt("position", entry.position)
-          .lte("position", newPosition)
-          .order("position");
-
-        for (const e of (toShift ?? [])) {
-          await admin.from("queue_entries").update({ position: e.position - 1 }).eq("id", e.id);
-        }
+        await admin.rpc("shift_queue_positions", {
+          _queue_id: entry.queue_id,
+          _old_position: entry.position,
+          _new_position: newPosition,
+        });
       }
 
       // Update this entry's position and wait
