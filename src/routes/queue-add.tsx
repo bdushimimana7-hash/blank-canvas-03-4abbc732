@@ -63,7 +63,7 @@ export default function AddToQueue() {
         const tpl = position === 1 && biz?.sms_template_first ? biz.sms_template_first : biz?.sms_template_add;
         if (tpl) {
           const msg = fillTemplate(tpl, { name: savedName, position, wait, business: businessName ?? "" });
-          sendSmsViaEdge(formatted, msg).then((r) => { if (!r.success) toast.warning("SMS failed to send."); }).catch(() => toast.warning("SMS failed to send."));
+          sendSmsViaEdge(formatted, msg, { businessId, messageType: "join", customerName: savedName }).then((r) => { if (!r.success) toast.warning("SMS failed to send."); }).catch(() => toast.warning("SMS failed to send."));
         }
       }
     } catch (err) {

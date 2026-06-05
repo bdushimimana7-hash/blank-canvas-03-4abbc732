@@ -104,7 +104,7 @@ export default function SettingsPage() {
       return;
     }
     const msg = fillTemplate(template, { name: "Jean", position: 6, wait: 45, business: name || "your business" });
-    const r = await import("@/lib/edge-functions").then((m) => m.sendSmsViaEdge(phone, msg));
+    const r = await import("@/lib/edge-functions").then((m) => m.sendSmsViaEdge(phone, msg, { businessId: businessId ?? undefined, messageType: "other", customerName: "Test" }));
     if (r.success) toast.success("Test SMS sent"); else toast.error(r.error ?? "Test SMS failed");
   };
 

@@ -84,7 +84,7 @@ export default function LiveQueue() {
     const { data: biz } = await supabase.from("businesses").select("sms_template_headsup").eq("id", businessId).single();
     if (!biz?.sms_template_headsup) return;
     const msg = fillTemplate(biz.sms_template_headsup, { name: t.customer_name, position: hp, wait: t.wait_minutes ?? 0, business: businessName ?? "" });
-    const r = await sendSmsViaEdge(t.customer_phone, msg);
+    const r = await sendSmsViaEdge(t.customer_phone, msg, { businessId: businessId!, messageType: "headsup", customerName: t.customer_name });
     if (!r.success) await supabase.from("queue_entries").update({ headsup_sent: false }).eq("id", t.id);
   };
 
@@ -95,7 +95,7 @@ export default function LiveQueue() {
     if (biz?.sms_template_call) {
       const msg = fillTemplate(biz.sms_template_call, { name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "" });
       toast.success(`Called ${e.customer_name}`);
-      sendSmsViaEdge(e.customer_phone, msg).then((r) => { if (!r.success) toast.warning("SMS failed"); }).catch(() => toast.warning("SMS failed"));
+      sendSmsViaEdge(e.customer_phone, msg, { businessId: businessId!, messageType: "call", customerName: e.customer_name }).then((r) => { if (!r.success) toast.warning("SMS failed"); }).catch(() => toast.warning("SMS failed"));
     } else toast.success(`Called ${e.customer_name}`);
     triggerHeadsup();
   };
