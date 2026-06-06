@@ -246,19 +246,21 @@ export default function SettingsPage() {
                   <th className="text-left font-medium p-2">Time</th>
                   <th className="text-left font-medium p-2">Customer</th>
                   <th className="text-left font-medium p-2">Phone</th>
+                  <th className="text-left font-medium p-2">Message</th>
                   <th className="text-left font-medium p-2">Type</th>
                   <th className="text-left font-medium p-2">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {smsLogs.length === 0 && (
-                  <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">No messages yet.</td></tr>
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">No messages yet.</td></tr>
                 )}
                 {smsLogs.map((l) => (
                   <tr key={l.id} className="border-t">
                     <td className="p-2 text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleString()}</td>
                     <td className="p-2">{l.customer_name || "—"}</td>
                     <td className="p-2 text-muted-foreground">{l.customer_phone || "—"}</td>
+                    <td className="p-2 max-w-xs truncate" title={l.message}>{l.message || "—"}</td>
                     <td className="p-2"><span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-muted">{l.message_type}</span></td>
                     <td className="p-2">
                       <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${l.status === "sent" ? "bg-[#E8F5F1] text-[#0F6E56]" : "bg-red-50 text-red-600"}`}>
