@@ -42,13 +42,13 @@ export default function SuperAdmin() {
     }
   }, [user, role, loading, navigate]);
 
-  const reload = async () => {
+  const reload = async (silent = false) => {
     let baseRows: BizRow[] = [];
     try {
       const res = await callAdmin<{ businesses: BizRow[] }>("list_businesses_admin");
       baseRows = res.businesses;
     } catch (err) {
-      toast.error((err as Error).message);
+      if (!silent) toast.error((err as Error).message);
       return;
     }
     const today = new Date().toISOString().slice(0, 10);
@@ -75,7 +75,7 @@ export default function SuperAdmin() {
   };
 
   useEffect(() => {
-    if (role === "superadmin") reload();
+    if (role === "superadmin") setTimeout(() => reload(true), 500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [role]);
 

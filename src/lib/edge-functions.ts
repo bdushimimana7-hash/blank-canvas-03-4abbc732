@@ -3,8 +3,20 @@ import { supabase } from "@/integrations/supabase/external-client";
 async function invoke<T>(fn: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(fn, { body });
   if (error) {
-    const ctx = (error as { context?: { error?: string } }).context;
-    throw new Error(ctx?.error || error.message);
+    // Try to extract the real error message from the response body
+    try {
+      const ctx = error as { context?: Response | { error?: string }; message?: string };
+      if (ctx.context && ctx.context instanceof Response) {
+        const json = await ctx.context.json().catch(() => null);
+        if (json?.error) throw new Error(json.error);
+      } else if (ctx.context && typeof ctx.context === "object" && "error" in ctx.context) {
+        const msg = (ctx.context as { error?: string }).error;
+        if (msg) throw new Error(msg);
+      }
+    } catch (inner) {
+      if (inner instanceof Error && inner.message !== error.message) throw inner;
+    }
+    throw new Error(error.message);
   }
   if (data && typeof data === "object" && "error" in (data as Record<string, unknown>)) {
     const msg = (data as { error?: string }).error;
