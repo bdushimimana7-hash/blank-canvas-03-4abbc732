@@ -326,4 +326,7 @@ export default function LiveQueue() {
           </div>
         )}
       </main>
+    </div>
+  );
+}
 
