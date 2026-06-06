@@ -74,7 +74,8 @@ Deno.serve(async (req) => {
       case "signup_owner": {
         const {
           full_name, business_name, sector, email, password,
-          sms_template_add, sms_template_headsup, sms_template_call,
+          sms_template_add, sms_template_first, sms_template_headsup, sms_template_call,
+          avg_service_mins,
         } = data;
         if (!email || !password || password.length < 8) {
           return json({ error: "Invalid input" }, 400);
@@ -97,8 +98,10 @@ Deno.serve(async (req) => {
             sector,
             owner_id: userId,
             sms_template_add,
+            sms_template_first,
             sms_template_headsup,
             sms_template_call,
+            ...(avg_service_mins ? { avg_service_mins } : {}),
           })
           .select("id")
           .single();
