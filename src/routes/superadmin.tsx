@@ -68,21 +68,10 @@ export default function SuperAdmin() {
     }
     setBusinesses(rows);
     setEntriesToday(totalEntries);
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { count: smsTodayCount } = await supabase
       .from("sms_logs").select("id", { count: "exact", head: true })
       .gte("created_at", today + "T00:00:00");
-    const { count: smsWeekCount } = await supabase
-      .from("sms_logs").select("id", { count: "exact", head: true })
-      .gte("created_at", weekAgo);
     setSmsToday(smsTodayCount ?? 0);
-    setSmsWeek(smsWeekCount ?? 0);
-    const { data: recentLogs } = await supabase
-      .from("sms_logs")
-      .select("id, business_id, customer_name, customer_phone, message_type, status, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setSmsLogs((recentLogs ?? []) as typeof smsLogs);
   };
 
   useEffect(() => {
