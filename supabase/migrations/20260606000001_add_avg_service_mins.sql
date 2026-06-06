@@ -1,0 +1,1 @@
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS avg_service_mins INTEGER NOT NULL DEFAULT 15;
