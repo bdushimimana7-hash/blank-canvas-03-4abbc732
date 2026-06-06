@@ -67,6 +67,17 @@ export default function SignupPage() {
 
   const goStep2 = (e: React.FormEvent) => {
     e.preventDefault();
+    // Validate email format
+    const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email.trim())) {
+      return toast.error("Please enter a valid email address (e.g. yourname@gmail.com)");
+    }
+    // Block obvious placeholder emails
+    const lower = email.trim().toLowerCase();
+    const blocked = ["test@", "example@", "fake@", "admin@test", "user@test", "nomail", "noemail", "none@"];
+    if (blocked.some((b) => lower.startsWith(b)) || lower.includes("@example.") || lower.includes("@test.")) {
+      return toast.error("Please use your real email address — we'll send your login details there");
+    }
     if (password.length < 8) return toast.error("Password must be at least 8 characters");
     if (password !== confirm) return toast.error("Passwords do not match");
     setStep(2);

@@ -187,8 +187,6 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {businessId && <ShareQueueCard businessId={businessId} businessName={businessName ?? "queue"} />}
-
         {waiting > 0 && (
           <div className="mt-6 rounded-2xl bg-[#0F6E56] p-5 flex items-center justify-between gap-4 shadow-lg shadow-[#0F6E56]/20">
             <div>
@@ -228,6 +226,8 @@ export default function Dashboard() {
         </div>
 
         {total === 0 && <EmptyToday />}
+
+        {businessId && <ShareQueueCard businessId={businessId} businessName={businessName ?? "queue"} />}
 
         {weekTotal > 0 && (
           <div className="mb-6 grid grid-cols-3 gap-3">

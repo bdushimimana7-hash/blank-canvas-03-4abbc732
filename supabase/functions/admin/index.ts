@@ -6,165 +6,174 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const SUPERADMIN_EMAIL = "admin@possac.com";
+const SUPERADMIN_PASSWORD = "Possac@2026!";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) return json({ error: "Unauthorized" }, 401);
-    const token = authHeader.replace("Bearer ", "");
-
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-    const { data: userData, error: userErr } = await admin.auth.getUser(token);
-    if (userErr || !userData.user) return json({ error: "Unauthorized" }, 401);
-    const userId = userData.user.id;
 
     const body = await req.json();
     const action = String(body?.action ?? "");
     const data = body?.data ?? {};
 
-    const isSuperadmin = async () => {
-      const { data: r } = await admin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "superadmin")
-        .maybeSingle();
-      return !!r;
-    };
-
     switch (action) {
-      case "create_business_owner": {
-        if (!(await isSuperadmin())) return json({ error: "Forbidden" }, 403);
-        const { business_name, sector, owner_name, owner_email, password } = data;
-        if (!business_name || !owner_email || !password || password.length < 8) {
-          return json({ error: "Invalid input" }, 400);
-        }
-        const { data: created, error: ce } = await admin.auth.admin.createUser({
-          email: owner_email,
-          password,
-          email_confirm: true,
-          user_metadata: { full_name: owner_name },
-        });
-        if (ce || !created.user) return json({ error: ce?.message ?? "Failed to create user" }, 400);
-        const { data: biz, error: be } = await admin
-          .from("businesses")
-          .insert({ name: business_name, sector, owner_id: created.user.id })
-          .select()
-          .single();
-        if (be) {
-          await admin.auth.admin.deleteUser(created.user.id);
-          return json({ error: be.message }, 400);
-        }
-        return json({ success: true, business_id: biz.id, user_id: created.user.id });
+      case "superadmin_exists": {
+        const { count } = await admin
+          .from("user_roles")
+          .select("id", { count: "exact", head: true })
+          .eq("role", "superadmin");
+        return json({ exists: (count ?? 0) > 0 });
       }
 
-      case "invite_staff": {
-        const { business_id, full_name, email, password } = data;
-        if (!business_id || !email || !password || password.length < 8) {
+      case "bootstrap_superadmin": {
+        const { email, password } = data;
+        if (!email || !password || password.length < 8) {
           return json({ error: "Invalid input" }, 400);
         }
-        const { data: biz } = await admin
-          .from("businesses").select("id, owner_id").eq("id", business_id).maybeSingle();
-        if (!biz) return json({ error: "Business not found" }, 404);
-        if (biz.owner_id !== userId && !(await isSuperadmin())) {
-          return json({ error: "Forbidden" }, 403);
-        }
-        const { data: created, error: ce } = await admin.auth.admin.createUser({
-          email, password, email_confirm: true, user_metadata: { full_name },
+        const { count } = await admin
+          .from("user_roles")
+          .select("id", { count: "exact", head: true })
+          .eq("role", "superadmin");
+        if ((count ?? 0) > 0) return json({ error: "Superadmin already exists" }, 400);
+        const { data: created, error } = await admin.auth.admin.createUser({
+          email, password, email_confirm: true,
         });
-        if (ce || !created.user) return json({ error: ce?.message ?? "Failed" }, 400);
-        const { error: spErr } = await admin.from("staff_profiles").insert({
-          user_id: created.user.id, business_id, full_name, role: "staff",
+        if (error || !created.user) return json({ error: error?.message ?? "Failed" }, 400);
+        const { error: re } = await admin.from("user_roles").insert({
+          user_id: created.user.id, role: "superadmin",
         });
-        if (spErr) {
-          await admin.auth.admin.deleteUser(created.user.id);
-          return json({ error: spErr.message }, 400);
-        }
-        await admin.from("user_roles").insert({ user_id: created.user.id, role: "staff" });
-        try {
-          await admin.auth.admin.generateLink({ type: "recovery", email });
-        } catch (e) {
-          console.error("Could not send invite email", e);
-        }
-        return json({ success: true, user_id: created.user.id });
-      }
-
-      case "remove_staff": {
-        const { staff_profile_id } = data;
-        if (!staff_profile_id) return json({ error: "Invalid input" }, 400);
-        const { data: sp } = await admin
-          .from("staff_profiles")
-          .select("id, user_id, business_id, role")
-          .eq("id", staff_profile_id)
-          .maybeSingle();
-        if (!sp) return json({ error: "Not found" }, 404);
-        if (sp.role === "owner") return json({ error: "Cannot remove owner" }, 400);
-        const { data: biz } = await admin
-          .from("businesses").select("owner_id").eq("id", sp.business_id).maybeSingle();
-        if (biz?.owner_id !== userId && !(await isSuperadmin())) {
-          return json({ error: "Forbidden" }, 403);
-        }
-        await admin.from("staff_profiles").delete().eq("id", sp.id);
-        await admin.auth.admin.deleteUser(sp.user_id);
+        if (re) return json({ error: re.message }, 400);
         return json({ success: true });
       }
 
-      case "set_business_active": {
-        if (!(await isSuperadmin())) return json({ error: "Forbidden" }, 403);
-        const { business_id, active } = data;
-        const { error } = await admin
-          .from("businesses").update({ active: !!active }).eq("id", business_id);
-        if (error) return json({ error: error.message }, 400);
-        return json({ success: true });
-      }
-
-      case "list_businesses_admin": {
-        if (!(await isSuperadmin())) return json({ error: "Forbidden" }, 403);
-        const { data: biz } = await admin
-          .from("businesses")
-          .select("id, name, sector, active, created_at, owner_id")
-          .order("created_at", { ascending: false });
-
-        const emailById = new Map<string, string>();
-        let page = 1;
-        while (true) {
-          const { data: list } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-          if (!list?.users.length) break;
-          for (const u of list.users) if (u.email) emailById.set(u.id, u.email);
-          if (list.users.length < 200) break;
-          page += 1;
-          if (page > 25) break;
-        }
-
-        const rows: Array<Record<string, unknown>> = [];
-        for (const b of biz ?? []) {
-          const { count } = await admin
-            .from("queue_entries")
-            .select("id", { count: "exact", head: true })
-            .eq("business_id", b.id)
-            .eq("status", "served");
-          rows.push({
-            id: b.id, name: b.name, sector: b.sector, active: b.active,
-            created_at: b.created_at,
-            owner_email: b.owner_id ? (emailById.get(b.owner_id) ?? null) : null,
-            total_served: count ?? 0,
+      case "ensure_seed_superadmin": {
+        const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
+        const existing = list?.users.find((u) => u.email?.toLowerCase() === SUPERADMIN_EMAIL);
+        let userId = existing?.id;
+        if (!userId) {
+          const { data: created, error } = await admin.auth.admin.createUser({
+            email: SUPERADMIN_EMAIL,
+            password: SUPERADMIN_PASSWORD,
+            email_confirm: true,
           });
+          if (error || !created.user) return json({ success: false });
+          userId = created.user.id;
         }
-        return json({ businesses: rows });
+        await admin
+          .from("user_roles")
+          .upsert({ user_id: userId, role: "superadmin" }, { onConflict: "user_id,role" });
+        return json({ success: true });
+      }
+
+      case "signup_owner": {
+        const {
+          full_name, business_name, sector, email, password,
+          sms_template_add, sms_template_headsup, sms_template_call,
+        } = data;
+        if (!email || !password || password.length < 8) {
+          return json({ error: "Invalid input" }, 400);
+        }
+        if (String(email).toLowerCase() === SUPERADMIN_EMAIL) {
+          return json({ error: "This email is reserved." }, 400);
+        }
+        const { data: created, error } = await admin.auth.admin.createUser({
+          email, password, email_confirm: true,
+          user_metadata: { full_name },
+        });
+        if (error || !created.user) {
+          return json({ error: error?.message ?? "Could not create account" }, 400);
+        }
+        const userId = created.user.id;
+        const { data: biz, error: bizErr } = await admin
+          .from("businesses")
+          .insert({
+            name: business_name,
+            sector,
+            owner_id: userId,
+            sms_template_add,
+            sms_template_headsup,
+            sms_template_call,
+          })
+          .select("id")
+          .single();
+        if (bizErr || !biz) {
+          await admin.auth.admin.deleteUser(userId).catch(() => {});
+          return json({ error: bizErr?.message ?? "Could not create business" }, 400);
+        }
+        await admin.from("staff_profiles").upsert(
+          { user_id: userId, business_id: biz.id, full_name, role: "owner" },
+          { onConflict: "user_id,business_id" },
+        );
+        await admin.from("user_roles").upsert(
+          { user_id: userId, role: "owner" },
+          { onConflict: "user_id,role" },
+        );
+
+        // Send welcome email to owner
+        const resendKey = Deno.env.get("RESEND_API_KEY");
+        if (resendKey) {
+          const from = Deno.env.get("EMAIL_FROM") ?? "Possac <noreply@possac.pages.dev>";
+          const html = ownerWelcomeEmail({ ownerName: full_name || "there", businessName: business_name, email });
+          fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ from, to: email, subject: `Welcome to Possac, ${full_name || business_name}!`, html }),
+          }).catch((e) => console.error("Owner welcome email error", e));
+        }
+
+        return json({ success: true });
       }
 
       default:
         return json({ error: "Unknown action" }, 400);
     }
   } catch (e) {
-    console.error("admin error", e);
+    console.error("signup error", e);
     return json({ error: (e as Error).message }, 500);
   }
 });
+
+function ownerWelcomeEmail(opts: { ownerName: string; businessName: string; email: string }) {
+  const APP_URL = "https://possac.pages.dev";
+  return `<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;background:#F7F5F0;margin:0;padding:32px 16px;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #DDD9D0;overflow:hidden;">
+    <div style="background:#0F6E56;padding:28px 32px;">
+      <div style="font-size:22px;font-weight:700;color:#fff;">Possac</div>
+      <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:2px;">Smart Queue Management</div>
+    </div>
+    <div style="padding:32px;">
+      <h2 style="margin:0 0 8px;font-size:20px;color:#0E0E0C;">Welcome, ${opts.ownerName}!</h2>
+      <p style="color:#7A7A72;font-size:14px;line-height:1.6;margin:0 0 24px;">
+        Your Possac account for <strong>${opts.businessName}</strong> is ready. Here is how to get started quickly.
+      </p>
+      <a href="${APP_URL}/dashboard" style="display:inline-block;background:#0F6E56;color:#fff;text-decoration:none;padding:13px 28px;border-radius:12px;font-weight:600;font-size:14px;margin-bottom:28px;">Open your dashboard</a>
+      <div style="background:#F7F5F0;border-radius:12px;padding:16px;margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:600;color:#0F6E56;margin-bottom:10px;">Three things to do first</div>
+        <div style="font-size:13px;color:#374151;line-height:1.8;">
+          1. Download your QR code from the dashboard and place it at your entrance.<br/>
+          2. Add staff members in Settings so they can help manage the queue.<br/>
+          3. Open the Live Queue when you are ready to start serving customers.
+        </div>
+      </div>
+      <p style="color:#7A7A72;font-size:13px;line-height:1.6;margin:0;">
+        Questions? Reply to this email. We want Possac to work perfectly for ${opts.businessName}.
+      </p>
+    </div>
+    <div style="border-top:1px solid #F0EDE6;padding:20px 32px;background:#FAFAF9;">
+      <p style="margin:0;font-size:12px;color:#9CA3AF;">Sent to ${opts.email} because you created a Possac account.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
