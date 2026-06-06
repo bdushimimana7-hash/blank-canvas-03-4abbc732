@@ -188,7 +188,7 @@ export default function LiveQueue() {
             </div>
             <p className="text-sm font-semibold text-[#111827]">Queue is empty</p>
             <p className="text-xs text-[#6B7280] mt-1 mb-5">Add your first {copy.customer.toLowerCase()} to get started.</p>
-            {entries.length > 0 && <Link to="/queue-add" className="inline-flex items-center gap-2 bg-[#0F6E56] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#0a5a44] transition-colors">
+            <Link to="/queue-add" className="inline-flex items-center gap-2 bg-[#0F6E56] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#0a5a44] transition-colors">
               <Plus className="h-4 w-4" /> Add {copy.customer.toLowerCase()}
             </Link>
           </div>
@@ -326,9 +326,11 @@ export default function LiveQueue() {
           </div>
         )}
       </main>
-      <Link to="/queue-add" className="fixed bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 bg-[#0E0E0C] text-white px-6 h-12 rounded-full shadow-xl font-medium text-sm hover:bg-[#1a1a16] transition-all hover:-translate-y-0.5">
-        <Plus className="h-4 w-4" /> Add {copy.customer.toLowerCase()}
-      </Link>}
+      {entries.length > 0 && (
+        <Link to="/queue-add" className="fixed bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 bg-[#0E0E0C] text-white px-6 h-12 rounded-full shadow-xl font-medium text-sm hover:bg-[#1a1a16] transition-all hover:-translate-y-0.5">
+          <Plus className="h-4 w-4" /> Add {copy.customer.toLowerCase()}
+        </Link>
+      )}
     </div>
   );
 }
