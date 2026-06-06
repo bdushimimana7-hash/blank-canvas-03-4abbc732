@@ -23,11 +23,6 @@ export default function SuperAdmin() {
   const { user, loading, role } = useSession();
   const [businesses, setBusinesses] = useState<BizRow[]>([]);
   const [smsToday, setSmsToday] = useState(0);
-  const [smsWeek, setSmsWeek] = useState(0);
-  const [smsLogs, setSmsLogs] = useState<Array<{
-    id: string; business_id: string; customer_name: string; customer_phone: string;
-    message_type: string; status: string; created_at: string;
-  }>>([]);
   const [entriesToday, setEntriesToday] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [bn, setBn] = useState("");
@@ -73,21 +68,10 @@ export default function SuperAdmin() {
     }
     setBusinesses(rows);
     setEntriesToday(totalEntries);
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const { count: smsTodayCount } = await supabase
       .from("sms_logs").select("id", { count: "exact", head: true })
       .gte("created_at", today + "T00:00:00");
-    const { count: smsWeekCount } = await supabase
-      .from("sms_logs").select("id", { count: "exact", head: true })
-      .gte("created_at", weekAgo);
     setSmsToday(smsTodayCount ?? 0);
-    setSmsWeek(smsWeekCount ?? 0);
-    const { data: recentLogs } = await supabase
-      .from("sms_logs")
-      .select("id, business_id, customer_name, customer_phone, message_type, status, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setSmsLogs((recentLogs ?? []) as typeof smsLogs);
   };
 
   useEffect(() => {
@@ -138,50 +122,6 @@ export default function SuperAdmin() {
           <Stat label="Total businesses" value={businesses.length} />
           <Stat label="Entries today" value={entriesToday} />
           <Stat label="SMS sent today" value={smsToday} />
-        </div>
-
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold">SMS Activity</h2>
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Stat label="SMS today" value={smsToday} />
-            <Stat label="SMS this week" value={smsWeek} />
-          </div>
-          <div className="mt-4 bg-card border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-muted-foreground">
-                <tr>
-                  <th className="text-left font-medium p-3">Time</th>
-                  <th className="text-left font-medium p-3">Business</th>
-                  <th className="text-left font-medium p-3">Customer</th>
-                  <th className="text-left font-medium p-3">Phone</th>
-                  <th className="text-left font-medium p-3">Type</th>
-                  <th className="text-left font-medium p-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {smsLogs.length === 0 && (
-                  <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No SMS sent yet.</td></tr>
-                )}
-                {smsLogs.map((l) => {
-                  const biz = businesses.find((b) => b.id === l.business_id);
-                  return (
-                    <tr key={l.id} className="border-t">
-                      <td className="p-3 text-muted-foreground whitespace-nowrap">{new Date(l.created_at).toLocaleString()}</td>
-                      <td className="p-3">{biz?.name ?? "—"}</td>
-                      <td className="p-3">{l.customer_name || "—"}</td>
-                      <td className="p-3 text-muted-foreground">{l.customer_phone || "—"}</td>
-                      <td className="p-3"><span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-muted">{l.message_type}</span></td>
-                      <td className="p-3">
-                        <span className={`text-[10px] uppercase tracking-wider px-2 py-0.5 rounded ${l.status === "sent" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
-                          {l.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
         </div>
 
         <div className="mt-8 flex items-center justify-between">
