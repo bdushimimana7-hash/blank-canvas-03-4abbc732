@@ -327,10 +327,3 @@ export default function LiveQueue() {
         )}
       </main>
 
-      <Link to="/queue-add"
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 bg-[#0E0E0C] text-white px-6 h-12 rounded-full shadow-xl font-medium text-sm hover:bg-[#1a1a16] transition-all hover:-translate-y-0.5">
-        <Plus className="h-4 w-4" /> Add {copy.customer.toLowerCase()}
-      </Link>
-    </div>
-  );
-}
