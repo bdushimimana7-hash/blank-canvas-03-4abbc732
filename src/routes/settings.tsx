@@ -18,6 +18,7 @@ interface SmsLogRow {
   id: string;
   customer_name: string;
   customer_phone: string;
+  message: string;
   message_type: string;
   status: string;
   created_at: string;
