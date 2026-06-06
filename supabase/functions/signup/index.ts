@@ -120,14 +120,18 @@ Deno.serve(async (req) => {
 
         // Send welcome email to owner (fire and forget — never blocks signup)
         try {
-          const resendKey = Deno.env.get("RESEND_API_KEY");
-          if (resendKey) {
-            const from = Deno.env.get("EMAIL_FROM") ?? "Possac <onboarding@resend.dev>";
+          const brevoKey = Deno.env.get("BREVO_API_KEY");
+          if (brevoKey) {
             const html = ownerWelcomeEmail({ ownerName: full_name || "there", businessName: business_name, email });
-            fetch("https://api.resend.com/emails", {
+            fetch("https://api.brevo.com/v3/smtp/email", {
               method: "POST",
-              headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ from, to: email, subject: `Welcome to Possac, ${full_name || business_name}!`, html }),
+              headers: { "api-key": brevoKey, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sender: { name: "Possac", email: "hello.possac@gmail.com" },
+                to: [{ email }],
+                subject: `Welcome to Possac, ${full_name || business_name}!`,
+                htmlContent: html,
+              }),
             }).catch((e) => console.error("Owner welcome email error", e));
           }
         } catch (emailErr) {

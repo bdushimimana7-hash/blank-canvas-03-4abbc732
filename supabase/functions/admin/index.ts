@@ -11,16 +11,20 @@ const APP_URL = "https://possac.pages.dev";
 // Send email via Resend (Supabase's built-in SMTP or Resend if configured)
 // We use the Supabase admin generateLink + a plain fetch to Resend
 async function sendEmail(to: string, subject: string, html: string) {
-  const resendKey = Deno.env.get("RESEND_API_KEY");
-  if (!resendKey) {
-    console.warn("RESEND_API_KEY not set — skipping email");
+  const brevoKey = Deno.env.get("BREVO_API_KEY");
+  if (!brevoKey) {
+    console.warn("BREVO_API_KEY not set — skipping email");
     return;
   }
-  const from = Deno.env.get("EMAIL_FROM") ?? "Possac <onboarding@resend.dev>";
-  await fetch("https://api.resend.com/emails", {
+  await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
-    headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to, subject, html }),
+    headers: { "api-key": brevoKey, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sender: { name: "Possac", email: "hello.possac@gmail.com" },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+    }),
   });
 }
 
