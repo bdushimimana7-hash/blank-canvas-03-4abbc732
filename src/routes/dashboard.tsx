@@ -4,7 +4,10 @@ import { supabase } from "@/integrations/supabase/external-client";
 import { useSession } from "@/hooks/useSession";
 import { PossacLogo } from "@/components/Brand";
 import { sectorLabel } from "@/lib/sectors";
-import { Settings as SettingsIcon, ListOrdered, History as HistoryIcon, Check, Circle, LayoutDashboard, Menu, X, LogOut, ArrowRight } from "lucide-react";
+import {
+  Settings as SettingsIcon, ListOrdered, History as HistoryIcon,
+  Check, Circle, LayoutDashboard, Menu, X, LogOut, ArrowRight,
+} from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 import QRCode from "qrcode";
 
@@ -22,6 +25,7 @@ const DEFAULT_TEMPLATES = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user, loading, businessId, businessName, sector, role } = useSession();
+  const [ready, setReady] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [recent, setRecent] = useState<RecentEntry[]>([]);
   const [recentQueues, setRecentQueues] = useState<QueueDay[]>([]);
@@ -42,60 +46,70 @@ export default function Dashboard() {
   useEffect(() => {
     if (!businessId) return;
     const today = new Date().toISOString().slice(0, 10);
-    (async () => {
-      const { data: q } = await supabase.from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
-      if (!q) { setEntries([]); return; }
-      const { data } = await supabase.from("queue_entries").select("status, added_at, served_at").eq("queue_id", q.id);
-      setEntries((data ?? []) as Entry[]);
-    })();
-  }, [businessId]);
-
-  useEffect(() => {
-    if (!businessId) return;
     const since = new Date();
     since.setDate(since.getDate() - 7);
     const sinceDate = since.toISOString().slice(0, 10);
-    (async () => {
-      const { data: qs } = await supabase.from("queues").select("id, date").eq("business_id", businessId).gte("date", sinceDate);
-      const queueRows = (qs ?? []) as QueueDay[];
-      setRecentQueues(queueRows);
-      if (queueRows.length === 0) { setRecent([]); return; }
-      const { data } = await supabase.from("queue_entries").select("status, added_at, served_at, queue_id").in("queue_id", queueRows.map((r) => r.id));
-      setRecent((data ?? []) as RecentEntry[]);
-    })();
-  }, [businessId]);
 
-  useEffect(() => {
-    if (!businessId) return;
     (async () => {
-      const { data: biz } = await supabase.from("businesses")
-        .select("onboarding_complete, sms_template_add, sms_template_call, sms_template_headsup, sms_template_first")
-        .eq("id", businessId).maybeSingle();
-      if (!biz || biz.onboarding_complete) { setOnboarding(null); return; }
-      const smsCustomized =
-        biz.sms_template_add !== DEFAULT_TEMPLATES.sms_template_add ||
-        biz.sms_template_call !== DEFAULT_TEMPLATES.sms_template_call ||
-        biz.sms_template_headsup !== DEFAULT_TEMPLATES.sms_template_headsup ||
-        biz.sms_template_first !== DEFAULT_TEMPLATES.sms_template_first;
-      const { count: staffCount } = await supabase.from("staff_profiles").select("id", { count: "exact", head: true }).eq("business_id", businessId).neq("role", "owner");
-      const hasStaff = (staffCount ?? 0) > 0;
-      const { count: entryCount } = await supabase.from("queue_entries").select("id", { count: "exact", head: true }).eq("business_id", businessId);
-      const hasEntry = (entryCount ?? 0) > 0;
-      if (smsCustomized && hasStaff && hasEntry) {
-        await supabase.from("businesses").update({ onboarding_complete: true }).eq("id", businessId);
-        setOnboarding(null); return;
-      }
-      setOnboarding({ show: true, smsCustomized, hasStaff, hasEntry });
+      const [todayEntries, recentResult, onboardingResult] = await Promise.all([
+        supabase.from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle()
+          .then(async ({ data: q }) => {
+            if (!q) return [];
+            const { data } = await supabase.from("queue_entries")
+              .select("status, added_at, served_at").eq("queue_id", q.id);
+            return (data ?? []) as Entry[];
+          }),
+
+        supabase.from("queues").select("id, date").eq("business_id", businessId).gte("date", sinceDate)
+          .then(async ({ data: qs }) => {
+            const queueRows = (qs ?? []) as QueueDay[];
+            if (queueRows.length === 0) return { queues: [] as QueueDay[], entries: [] as RecentEntry[] };
+            const { data } = await supabase.from("queue_entries")
+              .select("status, added_at, served_at, queue_id")
+              .in("queue_id", queueRows.map((r) => r.id));
+            return { queues: queueRows, entries: (data ?? []) as RecentEntry[] };
+          }),
+
+        supabase.from("businesses")
+          .select("onboarding_complete, sms_template_add, sms_template_call, sms_template_headsup, sms_template_first")
+          .eq("id", businessId).maybeSingle()
+          .then(async ({ data: biz }) => {
+            if (!biz || biz.onboarding_complete) return null;
+            const smsCustomized =
+              biz.sms_template_add !== DEFAULT_TEMPLATES.sms_template_add ||
+              biz.sms_template_call !== DEFAULT_TEMPLATES.sms_template_call ||
+              biz.sms_template_headsup !== DEFAULT_TEMPLATES.sms_template_headsup ||
+              biz.sms_template_first !== DEFAULT_TEMPLATES.sms_template_first;
+            const { count: staffCount } = await supabase.from("staff_profiles")
+              .select("id", { count: "exact", head: true }).eq("business_id", businessId).neq("role", "owner");
+            const hasStaff = (staffCount ?? 0) > 0;
+            const { count: entryCount } = await supabase.from("queue_entries")
+              .select("id", { count: "exact", head: true }).eq("business_id", businessId);
+            const hasEntry = (entryCount ?? 0) > 0;
+            if (smsCustomized && hasStaff && hasEntry) {
+              await supabase.from("businesses").update({ onboarding_complete: true }).eq("id", businessId);
+              return null;
+            }
+            return { show: true, smsCustomized, hasStaff, hasEntry };
+          }),
+      ]);
+
+      setEntries(todayEntries);
+      setRecentQueues(recentResult.queues);
+      setRecent(recentResult.entries);
+      setOnboarding(onboardingResult);
+      setReady(true);
     })();
   }, [businessId]);
 
   const total = entries.length;
   const waiting = entries.filter((e) => e.status === "waiting").length;
-  const served = entries.filter((e) => e.status === "served").length;
-  const called = entries.filter((e) => e.status === "called").length;
+  const served  = entries.filter((e) => e.status === "served").length;
+  const called  = entries.filter((e) => e.status === "called").length;
   const servedDurations = entries.filter((e) => e.status === "served" && e.served_at)
     .map((e) => (new Date(e.served_at!).getTime() - new Date(e.added_at).getTime()) / 60000);
-  const avgWait = servedDurations.length ? Math.round(servedDurations.reduce((a, b) => a + b, 0) / servedDurations.length) : 0;
+  const avgWait = servedDurations.length
+    ? Math.round(servedDurations.reduce((a, b) => a + b, 0) / servedDurations.length) : 0;
 
   const hours = Array.from({ length: 14 }, (_, i) => i + 7);
   const chartData = hours.map((h) => ({
@@ -110,47 +124,71 @@ export default function Dashboard() {
   });
   const last7 = last7Days.map((date) => {
     const dayEntries = recent.filter((e) => dateByQueue.get(e.queue_id) === date);
-    const servedDay = dayEntries.filter((e) => e.status === "served");
-    const durations = servedDay.filter((e) => e.served_at)
+    const servedDay  = dayEntries.filter((e) => e.status === "served");
+    const durations  = servedDay.filter((e) => e.served_at)
       .map((e) => (new Date(e.served_at!).getTime() - new Date(e.added_at).getTime()) / 60000);
     const avg = durations.length ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
     return { date, total: dayEntries.length, served: servedDay.length, noShow: dayEntries.filter((e) => e.status === "no_show").length, avg };
   });
 
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = user?.user_metadata?.full_name?.split(" ")[0] || businessName || "there";
-  const weekTotal = last7.reduce((a, b) => a + b.total, 0);
-  const weekServed = last7.reduce((a, b) => a + b.served, 0);
+  const weekTotal   = last7.reduce((a, b) => a + b.total, 0);
+  const weekServed  = last7.reduce((a, b) => a + b.served, 0);
   const serviceRate = weekTotal > 0 ? Math.round((weekServed / weekTotal) * 100) : 0;
+
+  if (loading || !ready) {
+    return (
+      <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <PossacLogo />
+          <div className="h-1 w-32 bg-[#E5E7EB] rounded-full overflow-hidden mt-2">
+            <div
+              className="h-full bg-[#0F6E56] rounded-full"
+              style={{ width: "40%", animation: "sliding 1.2s ease-in-out infinite" }}
+            />
+          </div>
+        </div>
+        <style>{`@keyframes sliding { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="route-fade min-h-screen bg-[#F7F5F0] lg:flex">
-      <button onClick={() => setSidebarOpen(true)} className="fixed left-4 top-4 z-30 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#DDD9D0] bg-white text-[#0E0E0C] shadow-sm lg:hidden">
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="fixed left-4 top-4 z-30 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#DDD9D0] bg-white text-[#0E0E0C] shadow-sm lg:hidden"
+      >
         <Menu className="h-5 w-5" />
       </button>
       <DashboardSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} active="dashboard" />
 
       <main className="mx-auto w-full max-w-5xl px-5 py-8 lg:ml-64">
 
-        {/* Header */}
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium text-[#7A7A72] uppercase tracking-widest mb-1">{businessName ?? "—"} · {sectorLabel(sector)}</p>
+            <p className="text-xs font-medium text-[#7A7A72] uppercase tracking-widest mb-1">
+              {businessName ?? "—"} · {sectorLabel(sector)}
+            </p>
             <h1 className="text-2xl font-bold text-[#0E0E0C] tracking-tight" style={{ fontFamily: "'Syne', sans-serif" }}>
               {greeting}, {firstName}
             </h1>
-            <p className="text-sm text-[#7A7A72] mt-1">{new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</p>
+            <p className="text-sm text-[#7A7A72] mt-1">
+              {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+            </p>
           </div>
-          <Link to="/queue" className="shrink-0 inline-flex items-center gap-2 bg-[#0F6E56] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#0a5a44] transition-all hover:-translate-y-0.5 shadow-lg shadow-[#0F6E56]/20">
+          <Link
+            to="/queue"
+            className="shrink-0 inline-flex items-center gap-2 bg-[#0F6E56] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#0a5a44] transition-all hover:-translate-y-0.5 shadow-lg shadow-[#0F6E56]/20"
+          >
             Live Queue <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        {/* QR share — at the top so businesses always see it */}
         {businessId && <ShareQueueCard businessId={businessId} businessName={businessName ?? "queue"} />}
 
-        {/* Live alert */}
         {waiting > 0 && (
           <div className="mt-6 rounded-2xl bg-[#0F6E56] p-5 flex items-center justify-between gap-4 shadow-lg shadow-[#0F6E56]/20">
             <div>
@@ -159,7 +197,7 @@ export default function Dashboard() {
                 <span className="text-xs font-medium text-white/70 uppercase tracking-widest">Live now</span>
               </div>
               <p className="text-white font-semibold text-lg" style={{ fontFamily: "'Syne', sans-serif" }}>
-                {waiting} {waiting === 1 ? "customer" : "customers"} waiting{called > 0 && `, ${called} called`}
+                {waiting} {waiting === 1 ? "person" : "people"} waiting{called > 0 && `, ${called} called`}
               </p>
             </div>
             <Link to="/queue" className="shrink-0 bg-white text-[#0F6E56] px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#F0EDE6] transition-colors">
@@ -174,16 +212,15 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Today stats */}
         <div className="mt-6 mb-2">
           <h2 className="text-xs font-semibold text-[#7A7A72] uppercase tracking-widest">Today at a glance</h2>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {[
-            { label: "Total", value: total, tone: "default" },
-            { label: "Waiting", value: waiting, tone: "info" },
-            { label: "Called", value: called, tone: "warning" },
-            { label: "Served", value: served, tone: "success" },
+            { label: "Total",    value: total,   tone: "default"  },
+            { label: "Waiting",  value: waiting, tone: "info"     },
+            { label: "Called",   value: called,  tone: "warning"  },
+            { label: "Served",   value: served,  tone: "success"  },
             { label: "Avg wait", value: avgWait, suffix: "min", tone: "default" },
           ].map((s) => (
             <StatCard key={s.label} label={s.label} value={s.value} suffix={(s as any).suffix} tone={s.tone as any} />
@@ -192,12 +229,11 @@ export default function Dashboard() {
 
         {total === 0 && <EmptyToday />}
 
-        {/* Week summary */}
         {weekTotal > 0 && (
           <div className="mb-6 grid grid-cols-3 gap-3">
             {[
-              { label: "This week", value: weekTotal, sub: "customers" },
-              { label: "Served", value: weekServed, sub: "this week" },
+              { label: "This week",    value: weekTotal,         sub: "customers"       },
+              { label: "Served",       value: weekServed,        sub: "this week"       },
               { label: "Service rate", value: `${serviceRate}%`, sub: "served vs total" },
             ].map((s) => (
               <div key={s.label} className="bg-white border border-[#DDD9D0] rounded-2xl p-4 shadow-sm">
@@ -209,7 +245,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Chart */}
         <div className="mb-6 bg-white border border-[#DDD9D0] rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -231,7 +266,6 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Last 7 days table */}
         <div className="mb-6 bg-white border border-[#DDD9D0] rounded-2xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -254,7 +288,9 @@ export default function Dashboard() {
               <tbody>
                 {last7.map((d, i) => (
                   <tr key={d.date} className={`border-b border-[#F7F5F0] ${i % 2 === 0 ? "" : "bg-[#FAFAF8]"}`}>
-                    <td className="py-2.5 pr-4 text-[#0E0E0C]">{new Date(d.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</td>
+                    <td className="py-2.5 pr-4 text-[#0E0E0C]">
+                      {new Date(d.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
+                    </td>
                     <td className="py-2.5 pr-4 tabular-nums text-right font-medium">{d.total || "—"}</td>
                     <td className="py-2.5 pr-4 tabular-nums text-right text-[#0F6E56] font-medium">{d.served || "—"}</td>
                     <td className="py-2.5 pr-4 tabular-nums text-right text-[#7A7A72]">{d.noShow || "—"}</td>
@@ -273,10 +309,10 @@ export default function Dashboard() {
 
 export function DashboardSidebar({ open, onClose, active }: { open: boolean; onClose: () => void; active?: string }) {
   const items = [
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, key: "dashboard" },
-    { to: "/queue", label: "Live Queue", icon: ListOrdered, key: "queue" },
-    { to: "/history", label: "History", icon: HistoryIcon, key: "history" },
-    { to: "/settings", label: "Settings", icon: SettingsIcon, key: "settings" },
+    { to: "/dashboard", label: "Dashboard",  icon: LayoutDashboard, key: "dashboard" },
+    { to: "/queue",     label: "Live Queue", icon: ListOrdered,     key: "queue"     },
+    { to: "/history",   label: "History",    icon: HistoryIcon,     key: "history"   },
+    { to: "/settings",  label: "Settings",   icon: SettingsIcon,    key: "settings"  },
   ];
   return (
     <>
@@ -329,10 +365,10 @@ function EmptyToday() {
 
 function StatCard({ label, value, suffix, tone }: { label: string; value: number | string; suffix?: string; tone?: "info" | "success" | "warning" | "default" }) {
   const styles = {
-    info:    { bg: "bg-blue-50",    text: "text-blue-600" },
+    info:    { bg: "bg-blue-50",    text: "text-blue-600"   },
     success: { bg: "bg-[#E8F5F1]", text: "text-[#0F6E56]" },
-    warning: { bg: "bg-amber-50",  text: "text-amber-600" },
-    default: { bg: "bg-white",     text: "text-[#0E0E0C]" },
+    warning: { bg: "bg-amber-50",  text: "text-amber-600"  },
+    default: { bg: "bg-white",     text: "text-[#0E0E0C]"  },
   };
   const s = styles[tone ?? "default"];
   return (
@@ -347,10 +383,10 @@ function StatCard({ label, value, suffix, tone }: { label: string; value: number
 
 function OnboardingCard({ smsCustomized, hasStaff, hasEntry }: { smsCustomized: boolean; hasStaff: boolean; hasEntry: boolean }) {
   const steps = [
-    { label: "Account created", done: true, to: null as string | null },
-    { label: "Customize your SMS messages", done: smsCustomized, to: "/settings" },
-    { label: "Add your first staff member", done: hasStaff, to: "/settings" },
-    { label: "Add your first customer to the queue", done: hasEntry, to: "/queue-add" },
+    { label: "Account created",                       done: true,          to: null as string | null },
+    { label: "Customize your SMS messages",           done: smsCustomized, to: "/settings"  },
+    { label: "Add your first staff member",           done: hasStaff,      to: "/settings"  },
+    { label: "Add your first customer to the queue",  done: hasEntry,      to: "/queue-add" },
   ];
   const completed = steps.filter((s) => s.done).length;
   const pct = Math.round((completed / steps.length) * 100);
@@ -419,7 +455,7 @@ function ShareQueueCard({ businessId, businessName }: { businessId: string; busi
               Download QR
             </button>
             <button onClick={copy} className="inline-flex items-center gap-2 border border-[#DDD9D0] bg-white text-sm font-medium px-4 h-9 rounded-xl hover:bg-[#F7F5F0] transition-colors">
-              {copied ? "Copied" : "Copy link"}
+              {copied ? "Copied ✓" : "Copy link"}
             </button>
           </div>
         </div>

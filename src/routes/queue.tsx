@@ -36,9 +36,60 @@ function WaitBadge({ addedAt }: { addedAt: string }) {
   );
 }
 
+function Skeleton({ className }: { className?: string }) {
+  return <div className={`animate-pulse bg-[#E5E7EB] rounded-xl ${className ?? ""}`} />;
+}
+
+function QueueSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#F7F5F0]">
+      <div className="sticky top-0 z-10 bg-white border-b border-[#E5E7EB]">
+        <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="space-y-1.5">
+            <Skeleton className="h-2.5 w-16" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <Skeleton className="h-7 w-24" />
+        </div>
+        <div className="max-w-lg mx-auto px-4 pb-3 grid grid-cols-3 gap-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="border border-[#E5E7EB] rounded-xl py-2 px-3 bg-white">
+              <Skeleton className="h-6 w-8 mx-auto mb-1" />
+              <Skeleton className="h-2 w-12 mx-auto" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="max-w-lg mx-auto px-4 py-4 space-y-3">
+        <div className="bg-white border border-[#DDD9D0] rounded-2xl p-3">
+          <Skeleton className="h-10 w-full mb-3" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="bg-white border border-[#E5E7EB] rounded-2xl p-4">
+            <div className="flex gap-3">
+              <Skeleton className="h-10 w-10 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-48" />
+                <div className="flex gap-2 mt-3">
+                  <Skeleton className="h-8 flex-1" />
+                  <Skeleton className="h-8 flex-1" />
+                  <Skeleton className="h-8 w-16" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function LiveQueue() {
   const navigate = useNavigate();
-  const { user, loading, businessId, sector, businessName } = useSession();
+  const { user, loading, businessId, businessName, sector } = useSession();
+  const [ready, setReady] = useState(false);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [arrived, setArrived] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
@@ -48,55 +99,80 @@ export default function LiveQueue() {
   useEffect(() => { if (!loading && !user) navigate("/login"); }, [loading, user, navigate]);
 
   const today = new Date().toISOString().slice(0, 10);
+  const copy = sectorCopy(sector);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (initial = false) => {
     if (!businessId) return;
-    const { data: q } = await supabase.from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
-    if (!q) { setEntries([]); return; }
-    const { data } = await supabase.from("queue_entries").select("*").eq("queue_id", q.id).order("position");
-    setEntries((data ?? []) as Entry[]);
+    const { data: q } = await supabase
+      .from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
+    if (!q) {
+      setEntries([]);
+    } else {
+      const { data } = await supabase
+        .from("queue_entries").select("*").eq("queue_id", q.id).order("position");
+      setEntries((data ?? []) as Entry[]);
+    }
+    if (initial) setReady(true);
   }, [businessId, today]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (businessId) load(true);
+  }, [businessId, load]);
 
   useEffect(() => {
     if (!businessId) return;
     const ch = supabase.channel("queue-" + businessId)
-      .on("postgres_changes", { event: "*", schema: "public", table: "queue_entries", filter: `business_id=eq.${businessId}` }, () => load())
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "queue_entries",
+        filter: `business_id=eq.${businessId}`,
+      }, () => load(false))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [businessId, load]);
-
-  const copy = sectorCopy(sector);
 
   const triggerHeadsup = async () => {
     if (!businessId) return;
     const { data: q } = await supabase.from("queues").select("id").eq("business_id", businessId).eq("date", today).maybeSingle();
     if (!q) return;
-    const { data: wl } = await supabase.from("queue_entries").select("id,customer_name,customer_phone,headsup_sent,wait_minutes").eq("queue_id", q.id).eq("status", "waiting").order("position");
+    const { data: wl } = await supabase.from("queue_entries")
+      .select("id,customer_name,customer_phone,headsup_sent,wait_minutes")
+      .eq("queue_id", q.id).eq("status", "waiting").order("position");
     const { data: bc } = await supabase.from("businesses").select("headsup_position").eq("id", businessId).maybeSingle();
     const hp = Math.max(1, Math.min(5, bc?.headsup_position ?? 3));
     if (!wl || wl.length < hp) return;
     const t = wl[hp - 1];
     if (t.headsup_sent) return;
-    const { data: claimed } = await supabase.from("queue_entries").update({ headsup_sent: true }).eq("id", t.id).eq("headsup_sent", false).select("id");
+    const { data: claimed } = await supabase.from("queue_entries")
+      .update({ headsup_sent: true }).eq("id", t.id).eq("headsup_sent", false).select("id");
     if (!claimed?.length) return;
     const { data: biz } = await supabase.from("businesses").select("sms_template_headsup").eq("id", businessId).single();
     if (!biz?.sms_template_headsup) return;
-    const msg = fillTemplate(biz.sms_template_headsup, { name: t.customer_name, position: hp, wait: t.wait_minutes ?? 0, business: businessName ?? "" });
-    const r = await sendSmsViaEdge(t.customer_phone, msg, { businessId: businessId!, messageType: "headsup", customerName: t.customer_name });
+    const msg = fillTemplate(biz.sms_template_headsup, {
+      name: t.customer_name, position: hp,
+      wait: t.wait_minutes ?? 0, business: businessName ?? "",
+    });
+    const r = await sendSmsViaEdge(t.customer_phone, msg, {
+      businessId: businessId!, messageType: "headsup", customerName: t.customer_name,
+    });
     if (!r.success) await supabase.from("queue_entries").update({ headsup_sent: false }).eq("id", t.id);
   };
 
   const callEntry = async (e: Entry) => {
-    const { error } = await supabase.from("queue_entries").update({ status: "called", called_at: new Date().toISOString() }).eq("id", e.id);
+    const { error } = await supabase.from("queue_entries")
+      .update({ status: "called", called_at: new Date().toISOString() }).eq("id", e.id);
     if (error) { toast.error("Could not update"); return; }
     const { data: biz } = await supabase.from("businesses").select("sms_template_call").eq("id", businessId!).single();
     if (biz?.sms_template_call) {
-      const msg = fillTemplate(biz.sms_template_call, { name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "" });
+      const msg = fillTemplate(biz.sms_template_call, {
+        name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "",
+      });
       toast.success(`Called ${e.customer_name}`);
-      sendSmsViaEdge(e.customer_phone, msg, { businessId: businessId!, messageType: "call", customerName: e.customer_name }).then((r) => { if (!r.success) toast.warning("SMS failed"); }).catch(() => toast.warning("SMS failed"));
-    } else toast.success(`Called ${e.customer_name}`);
+      sendSmsViaEdge(e.customer_phone, msg, {
+        businessId: businessId!, messageType: "call", customerName: e.customer_name,
+      }).then((r) => { if (!r.success) toast.warning("SMS failed"); }).catch(() => toast.warning("SMS failed"));
+    } else {
+      toast.success(`Called ${e.customer_name}`);
+    }
     triggerHeadsup();
   };
 
@@ -118,9 +194,11 @@ export default function LiveQueue() {
     toast.success("Marked as arrived");
   };
 
+  if (loading || !ready) return <QueueSkeleton />;
+
   const waiting = entries.filter((e) => e.status === "waiting").length;
-  const called = entries.filter((e) => e.status === "called").length;
-  const served = entries.filter((e) => e.status === "served").length;
+  const called  = entries.filter((e) => e.status === "called").length;
+  const served  = entries.filter((e) => e.status === "served").length;
   const normalizedSearch = search.trim().toLowerCase();
 
   const visibleEntries = entries.filter((e) => {
@@ -130,9 +208,9 @@ export default function LiveQueue() {
   });
 
   const waitingEntries = visibleEntries.filter((e) => e.status === "waiting");
-  const calledEntries = visibleEntries.filter((e) => e.status === "called");
-  const doneEntries = visibleEntries.filter((e) => e.status === "served" || e.status === "no_show");
-  const isSelfJoined = (e: Entry) => !e.added_by;
+  const calledEntries  = visibleEntries.filter((e) => e.status === "called");
+  const doneEntries    = visibleEntries.filter((e) => e.status === "served" || e.status === "no_show");
+  const isSelfJoined   = (e: Entry) => !e.added_by;
 
   return (
     <div className="min-h-screen bg-[#F7F5F0]">
@@ -149,8 +227,8 @@ export default function LiveQueue() {
         <div className="max-w-lg mx-auto px-4 pb-3 grid grid-cols-3 gap-2">
           {[
             { label: "Waiting", value: waiting, color: "text-[#0F6E56]", bg: "bg-[#E8F5F1]" },
-            { label: "Called", value: called, color: "text-amber-600", bg: "bg-amber-50" },
-            { label: "Served", value: served, color: "text-[#374151]", bg: "bg-[#F9FAFB]" },
+            { label: "Called",  value: called,  color: "text-amber-600", bg: "bg-amber-50"  },
+            { label: "Served",  value: served,  color: "text-[#374151]", bg: "bg-[#F9FAFB]" },
           ].map((s) => (
             <div key={s.label} className={`${s.bg} border border-[#E5E7EB] rounded-xl py-2 text-center`}>
               <div className={`text-xl font-bold tabular-nums ${s.color}`} style={{ fontFamily: "'Syne', sans-serif" }}>{s.value}</div>
@@ -167,7 +245,7 @@ export default function LiveQueue() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by customer name"
+              placeholder="Search by name"
               className="h-10 w-full rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] pl-9 pr-3 text-sm outline-none focus:border-[#0F6E56] transition-colors"
             />
           </div>
@@ -175,10 +253,9 @@ export default function LiveQueue() {
             <button onClick={callNext}
               className="w-full h-10 bg-[#0F6E56] text-white rounded-xl text-sm font-semibold hover:bg-[#0a5a44] transition-all flex items-center justify-center gap-2">
               <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-              Call next customer
+              Call next
             </button>
           )}
-          <p className="text-xs text-[#7A7A72] text-center">Tip: Call customers in order for the best experience.</p>
         </div>
 
         {entries.length === 0 ? (
@@ -187,23 +264,27 @@ export default function LiveQueue() {
               <Plus className="h-6 w-6 text-[#0F6E56]" />
             </div>
             <p className="text-sm font-semibold text-[#111827]">Queue is empty</p>
-            <p className="text-xs text-[#6B7280] mt-1 mb-5">Add your first {copy.customer.toLowerCase()} to get started.</p>
-            <Link to="/queue-add" className="inline-flex items-center gap-2 bg-[#0F6E56] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#0a5a44] transition-colors">
+            <p className="text-xs text-[#6B7280] mt-1 mb-5">
+              Add your first {copy.customer.toLowerCase()} to get started.
+            </p>
+            <Link to="/queue-add"
+              className="inline-flex items-center gap-2 bg-[#0F6E56] text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-[#0a5a44] transition-colors">
               <Plus className="h-4 w-4" /> Add {copy.customer.toLowerCase()}
             </Link>
           </div>
         ) : (
           <div className="space-y-4">
-
             {waitingEntries.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="h-2 w-2 rounded-full bg-[#0F6E56] animate-pulse" />
-                  <span className="text-xs font-semibold text-[#0F6E56] uppercase tracking-widest">Waiting — {waitingEntries.length}</span>
+                  <span className="text-xs font-semibold text-[#0F6E56] uppercase tracking-widest">
+                    Waiting — {waitingEntries.length}
+                  </span>
                 </div>
                 <ul className="space-y-2">
                   {waitingEntries.map((e) => {
-                    const isHere = arrived.has(e.id);
+                    const isHere     = arrived.has(e.id);
                     const selfJoined = isSelfJoined(e);
                     return (
                       <li key={e.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
@@ -214,7 +295,7 @@ export default function LiveQueue() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-[#111827] text-sm">{e.customer_name}</span>
-                              {isHere && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">Here</span>}
+                              {isHere     && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">Here</span>}
                               {selfJoined && <span className="text-[10px] text-[#0F6E56] bg-[#E8F5F1] px-1.5 py-0.5 rounded-md font-medium">QR</span>}
                               <div className="ml-auto"><WaitBadge addedAt={e.added_at} /></div>
                             </div>
@@ -223,17 +304,21 @@ export default function LiveQueue() {
                             </div>
                             <div className="mt-3 flex gap-2">
                               {selfJoined && !isHere && (
-                                <button onClick={() => markArrived(e.id)} className="h-8 px-3 border border-green-200 text-green-700 bg-green-50 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">
+                                <button onClick={() => markArrived(e.id)}
+                                  className="h-8 px-3 border border-green-200 text-green-700 bg-green-50 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">
                                   Arrived
                                 </button>
                               )}
-                              <button onClick={() => callEntry(e)} className="flex-1 h-8 bg-[#0F6E56] text-white rounded-lg text-xs font-semibold hover:bg-[#0D5E49] transition-colors">
+                              <button onClick={() => callEntry(e)}
+                                className="flex-1 h-8 bg-[#0F6E56] text-white rounded-lg text-xs font-semibold hover:bg-[#0D5E49] transition-colors">
                                 Call
                               </button>
-                              <button onClick={() => setStatus(e, "served")} className="flex-1 h-8 border border-[#E5E7EB] text-[#374151] rounded-lg text-xs font-medium hover:bg-[#F9FAFB] transition-colors">
+                              <button onClick={() => setStatus(e, "served")}
+                                className="flex-1 h-8 border border-[#E5E7EB] text-[#374151] rounded-lg text-xs font-medium hover:bg-[#F9FAFB] transition-colors">
                                 Served
                               </button>
-                              <button onClick={() => setStatus(e, "no_show")} className="h-8 px-3 text-[#9CA3AF] rounded-lg text-xs hover:bg-[#F9FAFB] transition-colors">
+                              <button onClick={() => setStatus(e, "no_show")}
+                                className="h-8 px-3 text-[#9CA3AF] rounded-lg text-xs hover:bg-[#F9FAFB] transition-colors">
                                 No show
                               </button>
                             </div>
@@ -267,10 +352,12 @@ export default function LiveQueue() {
                           </div>
                           <div className="text-xs text-[#9CA3AF] mt-0.5">{e.customer_phone || "No phone"}</div>
                           <div className="mt-2 flex gap-2">
-                            <button onClick={() => setStatus(e, "served")} className="flex-1 h-8 bg-[#0F6E56] text-white rounded-lg text-xs font-semibold hover:bg-[#0D5E49] transition-colors">
+                            <button onClick={() => setStatus(e, "served")}
+                              className="flex-1 h-8 bg-[#0F6E56] text-white rounded-lg text-xs font-semibold hover:bg-[#0D5E49] transition-colors">
                               Served
                             </button>
-                            <button onClick={() => setStatus(e, "no_show")} className="flex-1 h-8 border border-[#E5E7EB] text-[#9CA3AF] rounded-lg text-xs hover:bg-white transition-colors">
+                            <button onClick={() => setStatus(e, "no_show")}
+                              className="flex-1 h-8 border border-[#E5E7EB] text-[#9CA3AF] rounded-lg text-xs hover:bg-white transition-colors">
                               No show
                             </button>
                           </div>
@@ -314,7 +401,7 @@ export default function LiveQueue() {
 
             {visibleEntries.length === 0 && search && (
               <div className="rounded-2xl border border-[#DDD9D0] bg-white p-6 text-center text-sm text-[#7A7A72]">
-                No customers matching "{search}"
+                No results for "{search}"
               </div>
             )}
 
@@ -326,12 +413,13 @@ export default function LiveQueue() {
           </div>
         )}
       </main>
+
       {entries.length > 0 && (
-        <Link to="/queue-add" className="fixed bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 bg-[#0E0E0C] text-white px-6 h-12 rounded-full shadow-xl font-medium text-sm hover:bg-[#1a1a16] transition-all hover:-translate-y-0.5">
+        <Link to="/queue-add"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 bg-[#0E0E0C] text-white px-6 h-12 rounded-full shadow-xl font-medium text-sm hover:bg-[#1a1a16] transition-all hover:-translate-y-0.5">
           <Plus className="h-4 w-4" /> Add {copy.customer.toLowerCase()}
         </Link>
       )}
     </div>
   );
 }
-
