@@ -23,11 +23,6 @@ export default function SuperAdmin() {
   const { user, loading, role } = useSession();
   const [businesses, setBusinesses] = useState<BizRow[]>([]);
   const [smsToday, setSmsToday] = useState(0);
-  const [smsWeek, setSmsWeek] = useState(0);
-  const [smsLogs, setSmsLogs] = useState<Array<{
-    id: string; business_id: string; customer_name: string; customer_phone: string;
-    message_type: string; status: string; created_at: string;
-  }>>([]);
   const [entriesToday, setEntriesToday] = useState(0);
   const [showCreate, setShowCreate] = useState(false);
   const [bn, setBn] = useState("");
