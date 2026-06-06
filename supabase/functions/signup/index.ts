@@ -16,7 +16,7 @@ async function sendEmail(to: string, subject: string, html: string) {
     console.warn("RESEND_API_KEY not set — skipping email");
     return;
   }
-  const from = Deno.env.get("EMAIL_FROM") ?? "Possac <noreply@possac.pages.dev>";
+  const from = Deno.env.get("EMAIL_FROM") ?? "Possac <onboarding@resend.dev>";
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Authorization": `Bearer ${resendKey}`, "Content-Type": "application/json" },
@@ -83,51 +83,35 @@ function ownerWelcomeEmail(opts: {
   businessName: string;
   email: string;
 }) {
-  return `
-<!DOCTYPE html>
+  const APP_URL = "https://possac.pages.dev";
+  return `<!DOCTYPE html>
 <html>
 <body style="font-family:sans-serif;background:#F7F5F0;margin:0;padding:32px 16px;">
   <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #DDD9D0;overflow:hidden;">
     <div style="background:#0F6E56;padding:28px 32px;">
-      <div style="font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.5px;">Possac</div>
+      <div style="font-size:22px;font-weight:700;color:#fff;">Possac</div>
       <div style="font-size:13px;color:rgba(255,255,255,0.7);margin-top:2px;">Smart Queue Management</div>
     </div>
     <div style="padding:32px;">
-      <h2 style="margin:0 0 8px;font-size:20px;color:#0E0E0C;">Welcome, ${opts.ownerName}! 🎉</h2>
+      <h2 style="margin:0 0 8px;font-size:20px;color:#0E0E0C;">Welcome, ${opts.ownerName}!</h2>
       <p style="color:#7A7A72;font-size:14px;line-height:1.6;margin:0 0 24px;">
-        Your Possac account for <strong>${opts.businessName}</strong> is ready. Here's how to get the most out of it from day one.
+        Your Possac account for <strong>${opts.businessName}</strong> is ready. Here is how to get started quickly.
       </p>
-      <a href="${APP_URL}/dashboard" style="display:inline-block;background:#0F6E56;color:#fff;text-decoration:none;padding:13px 28px;border-radius:12px;font-weight:600;font-size:14px;margin-bottom:28px;">
-        Open your dashboard →
-      </a>
-      <div style="margin-bottom:24px;">
-        <div style="font-size:12px;font-weight:600;color:#0F6E56;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Getting started</div>
-        <div style="display:flex;flex-direction:column;gap:12px;">
-          ${[
-            ["1", "Print your QR code", "Go to your dashboard and download the QR code. Place it at your entrance so customers can scan and join the queue themselves."],
-            ["2", "Add your staff", "Go to Settings → Team Members to add staff who will manage the queue with you."],
-            ["3", "Customize your SMS messages", "In Settings, you can edit the messages customers receive — make them sound like your business."],
-            ["4", "Open the live queue", "When you're ready to serve customers, open the Live Queue page. You'll see everyone waiting in real time."],
-          ].map(([n, title, desc]) => `
-          <div style="display:flex;gap:12px;align-items:flex-start;">
-            <div style="min-width:28px;height:28px;background:#E8F5F1;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#0F6E56;">${n}</div>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:#0E0E0C;margin-bottom:2px;">${title}</div>
-              <div style="font-size:12px;color:#7A7A72;line-height:1.5;">${desc}</div>
-            </div>
-          </div>`).join("")}
+      <a href="${APP_URL}/dashboard" style="display:inline-block;background:#0F6E56;color:#fff;text-decoration:none;padding:13px 28px;border-radius:12px;font-weight:600;font-size:14px;margin-bottom:28px;">Open your dashboard</a>
+      <div style="background:#F7F5F0;border-radius:12px;padding:16px;margin-bottom:20px;">
+        <div style="font-size:12px;font-weight:600;color:#0F6E56;margin-bottom:10px;">Three things to do first</div>
+        <div style="font-size:13px;color:#374151;line-height:1.8;">
+          1. Download your QR code from the dashboard and place it at your entrance.<br/>
+          2. Add staff members in Settings so they can help manage the queue.<br/>
+          3. Open the Live Queue when you are ready to start serving customers.
         </div>
       </div>
-      <div style="background:#F7F5F0;border-radius:12px;padding:16px;">
-        <div style="font-size:13px;color:#7A7A72;line-height:1.6;">
-          Need help? Reply to this email and we'll get back to you. We want Possac to work perfectly for ${opts.businessName}.
-        </div>
-      </div>
+      <p style="color:#7A7A72;font-size:13px;line-height:1.6;margin:0;">
+        Questions? Reply to this email. We want Possac to work perfectly for ${opts.businessName}.
+      </p>
     </div>
     <div style="border-top:1px solid #F0EDE6;padding:20px 32px;background:#FAFAF9;">
-      <p style="margin:0;font-size:12px;color:#9CA3AF;">
-        You're receiving this because you created a Possac account with ${opts.email}.
-      </p>
+      <p style="margin:0;font-size:12px;color:#9CA3AF;">Sent to ${opts.email} because you created a Possac account.</p>
     </div>
   </div>
 </body>
