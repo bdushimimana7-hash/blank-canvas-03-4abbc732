@@ -66,7 +66,7 @@ export default function SettingsPage() {
     setStaff((sp ?? []) as StaffRow[]);
     const { data: logs } = await supabase
       .from("sms_logs")
-      .select("id, customer_name, customer_phone, message_type, status, created_at")
+      .select("id, customer_name, customer_phone, message, message_type, status, created_at")
       .eq("business_id", businessId)
       .order("created_at", { ascending: false })
       .limit(50);
