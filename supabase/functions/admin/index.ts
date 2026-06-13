@@ -86,6 +86,7 @@ function ownerWelcomeEmail(opts: {
   ownerName: string;
   businessName: string;
   email: string;
+  password?: string;
 }) {
   const APP_URL = "https://possac.pages.dev";
   return `<!DOCTYPE html>
@@ -101,6 +102,16 @@ function ownerWelcomeEmail(opts: {
       <p style="color:#7A7A72;font-size:14px;line-height:1.6;margin:0 0 24px;">
         Your Possac account for <strong>${opts.businessName}</strong> is ready. Here is how to get started quickly.
       </p>
+      ${opts.password ? `
+      <div style="background:#F7F5F0;border:1px solid #DDD9D0;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <div style="font-size:12px;color:#7A7A72;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Your login details</div>
+        <div style="margin-bottom:8px;"><span style="font-size:13px;color:#7A7A72;">Email: </span><strong style="color:#0E0E0C;">${opts.email}</strong></div>
+        <div><span style="font-size:13px;color:#7A7A72;">Temporary password: </span><strong style="color:#0E0E0C;font-family:monospace;">${opts.password}</strong></div>
+      </div>
+      <p style="color:#7A7A72;font-size:13px;line-height:1.6;margin:0 0 24px;">
+        We recommend changing your password after your first login.
+      </p>
+      ` : ""}
       <a href="${APP_URL}/dashboard" style="display:inline-block;background:#0F6E56;color:#fff;text-decoration:none;padding:13px 28px;border-radius:12px;font-weight:600;font-size:14px;margin-bottom:28px;">Open your dashboard</a>
       <div style="background:#F7F5F0;border-radius:12px;padding:16px;margin-bottom:20px;">
         <div style="font-size:12px;font-weight:600;color:#0F6E56;margin-bottom:10px;">Three things to do first</div>
@@ -243,6 +254,7 @@ Deno.serve(async (req) => {
             ownerName: owner_name || "there",
             businessName: biz.name,
             email: owner_email,
+            password,
           }),
         ).catch((e) => console.error("Owner email error", e));
 

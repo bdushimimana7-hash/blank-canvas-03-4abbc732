@@ -19,7 +19,7 @@ export default function StatusPage() {
   const { entryId = "" } = useParams();
   const [data, setData] = useState<StatusData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showPushback, setShowPushback] = useState(false);
+  const [pushbackError, setPushbackError] = useState<string | null>(null);
   const [pushbackDone, setPushbackDone] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -79,15 +79,28 @@ export default function StatusPage() {
     window.setTimeout(() => setCopied(false), 1500);
   };
 
-  const handlePushback = async (mins: 15 | 30 | 45) => {
+  const handlePushback = async () => {
     setActionLoading(true);
+    setPushbackError(null);
     const { data: res, error } = await supabase.functions.invoke("public-queue", {
-      body: { action: "pushback", data: { entryId, delayMinutes: mins } },
+      body: { action: "pushback", data: { entryId } },
     });
     setActionLoading(false);
-    if (error || (res as any)?.error) return;
+    let message = (res as any)?.error ?? error?.message;
+    const context = (error as any)?.context;
+    if (context && typeof context.json === "function") {
+      try {
+        const body = await context.json();
+        message = body?.error ?? message;
+      } catch {
+        // Keep the Supabase error message if the response body is not JSON.
+      }
+    }
+    if (message) {
+      setPushbackError(message);
+      return;
+    }
     setPushbackDone(true);
-    setShowPushback(false);
     refresh();
   };
 
@@ -266,34 +279,18 @@ export default function StatusPage() {
                 <p className="text-xs text-[#7A7A72] mt-1">We'll alert you when you're close.</p>
               </div>
             ) : (
-              <div className="bg-white border border-[#DDD9D0] rounded-2xl overflow-hidden shadow-sm">
+              <div className="bg-white border border-[#DDD9D0] rounded-2xl px-5 py-4 shadow-sm">
                 <button
-                  onClick={() => setShowPushback(!showPushback)}
-                  className="w-full flex items-center justify-between px-5 py-4 text-sm font-medium text-[#0E0E0C] hover:bg-[#F7F5F0] transition-colors">
-                  <span className="flex items-center gap-2">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7A7A72" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  onClick={handlePushback}
+                  disabled={actionLoading}
+                  className="w-full flex items-center justify-center gap-2 h-11 rounded-xl bg-[#0F6E56] px-4 text-sm font-semibold text-white hover:bg-[#0C5946] transition-colors disabled:opacity-50">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    Running late? Push my spot back
-                  </span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7A7A72" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    style={{ transform: showPushback ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-                    <path d="M6 9l6 6 6-6"/>
-                  </svg>
+                  {actionLoading ? "Moving..." : "Move me to the back of the queue"}
                 </button>
-                {showPushback && (
-                  <div className="border-t border-[#DDD9D0] px-5 py-4">
-                    <p className="text-xs text-[#7A7A72] mb-3">How much extra time do you need?</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([15, 30, 45] as const).map((m) => (
-                        <button key={m} onClick={() => handlePushback(m)} disabled={actionLoading}
-                          className="h-10 rounded-xl border border-[#DDD9D0] text-sm font-medium text-[#0E0E0C] hover:border-[#0F6E56] hover:bg-[#E8F5F1] hover:text-[#0F6E56] transition-colors disabled:opacity-50">
-                          {m} min
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                {pushbackError && (
+                  <p className="mt-3 text-center text-xs font-medium text-red-500">{pushbackError}</p>
                 )}
               </div>
             )}
@@ -352,4 +349,3 @@ function StatusBadge({ status }: { status: string }) {
 
 // status done
 // Done
-
