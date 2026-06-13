@@ -238,10 +238,10 @@ Deno.serve(async (req) => {
         if (shiftErr) return json({ error: shiftErr.message }, 500);
       }
 
-      // Update this entry's position and wait
-      const newWait = newPosition * avgMin;
+      // Recalculate wait from the new position and the business service time.
+      const recalculatedWaitMinutes = newPosition * avgMin;
       const { error: updateErr } = await admin.from("queue_entries")
-        .update({ position: newPosition, wait_minutes: newWait })
+        .update({ position: newPosition, wait_minutes: recalculatedWaitMinutes })
         .eq("id", entryId);
       if (updateErr) return json({ error: updateErr.message }, 500);
 
@@ -250,13 +250,13 @@ Deno.serve(async (req) => {
         const msg = fillTemplate(biz.sms_template_add, {
           name: entry.customer_name,
           position: newPosition,
-          wait: newWait,
+          wait: recalculatedWaitMinutes,
           business: biz.name ?? "",
         });
         sendPindoSms(admin, entry.customer_phone, msg, { businessId: entry.business_id, messageType: "pushback", customerName: entry.customer_name });
       }
 
-      return json({ ok: true, newPosition, newWait });
+      return json({ ok: true, newPosition, newWait: recalculatedWaitMinutes });
     }
 
     // ── remove ────────────────────────────────────────────────────────────────
