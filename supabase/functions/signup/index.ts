@@ -6,8 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const SUPERADMIN_EMAIL = "admin@possac.com";
-const SUPERADMIN_PASSWORD = "Possac@2026!";
+const SUPERADMIN_EMAIL = Deno.env.get("SUPERADMIN_EMAIL") ?? "admin@possac.com";
+const SUPERADMIN_PASSWORD = Deno.env.get("SUPERADMIN_PASSWORD") ?? "Possac@2026!";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

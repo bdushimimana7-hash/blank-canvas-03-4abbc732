@@ -23,6 +23,7 @@ export default function History() {
   const [range, setRange] = useState<"today" | "7" | "30" | "custom">("7");
   const [customStart, setCustomStart] = useState(new Date().toISOString().slice(0, 10));
   const [customEnd, setCustomEnd] = useState(new Date().toISOString().slice(0, 10));
+  const isLimited = entries.length >= 1000;
 
   useEffect(() => { document.title = "History — Possac"; }, []);
 
@@ -45,7 +46,8 @@ export default function History() {
         .from("queue_entries")
         .select("id, customer_name, customer_phone, position, status, added_at, called_at, served_at, wait_minutes, queue_id")
         .eq("business_id", businessId)
-        .order("added_at", { ascending: false });
+        .order("added_at", { ascending: false })
+        .limit(1000);
       setEntries((es ?? []) as Entry[]);
       setFetching(false);
     })();
@@ -179,6 +181,12 @@ export default function History() {
             )}
           </div>
         </div>
+
+        {isLimited && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            Showing the most recent 1,000 queue entries. Use a narrower date range to review older records.
+          </div>
+        )}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
           {[

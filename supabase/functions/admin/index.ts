@@ -275,6 +275,15 @@ Deno.serve(async (req) => {
           .from("businesses").select("id, name, sector, active, created_at, owner_id")
           .order("created_at", { ascending: false });
 
+        const { data: serveCounts } = await admin.from("queue_entries")
+          .select("business_id, id", { count: "exact" })
+          .eq("status", "served");
+        const servedByBusiness = new Map<string, number>();
+        for (const row of serveCounts ?? []) {
+          const businessId = row.business_id as string;
+          servedByBusiness.set(businessId, (servedByBusiness.get(businessId) ?? 0) + 1);
+        }
+
         const emailById = new Map<string, string>();
         let page = 1;
         while (true) {
@@ -288,14 +297,11 @@ Deno.serve(async (req) => {
 
         const rows: Array<Record<string, unknown>> = [];
         for (const b of biz ?? []) {
-          const { count } = await admin.from("queue_entries")
-            .select("id", { count: "exact", head: true })
-            .eq("business_id", b.id).eq("status", "served");
           rows.push({
             id: b.id, name: b.name, sector: b.sector, active: b.active,
             created_at: b.created_at,
             owner_email: b.owner_id ? (emailById.get(b.owner_id) ?? null) : null,
-            total_served: count ?? 0,
+            total_served: servedByBusiness.get(b.id) ?? 0,
           });
         }
         return json({ businesses: rows });

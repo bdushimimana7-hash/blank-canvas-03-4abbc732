@@ -122,16 +122,26 @@ Deno.serve(async (req) => {
 
       const today = new Date().toISOString().slice(0, 10);
       let queueId: string | null = null;
-      const { data: existing } = await admin
-        .from("queues").select("id").eq("business_id", businessId).eq("date", today)
-        .order("created_at", { ascending: true }).limit(1);
-      if (existing?.[0]) queueId = existing[0].id;
-      else {
-        const { data: created } = await admin
-          .from("queues").insert({ business_id: businessId, date: today }).select("id").single();
-        queueId = created?.id ?? null;
-      }
+      const { data: queue, error: queueErr } = await admin.from("queues")
+        .upsert({ business_id: businessId, date: today }, { onConflict: "business_id,date" })
+        .select("id").single();
+      if (queueErr) return json({ error: queueErr.message }, 500);
+      queueId = queue?.id ?? null;
       if (!queueId) return json({ error: "Could not create queue" }, 500);
+
+      const { count: totalEntries } = await admin
+        .from("queue_entries").select("id", { count: "exact", head: true })
+        .eq("queue_id", queueId);
+      if ((totalEntries ?? 0) >= 500) return json({ error: "Queue is full for today" }, 400);
+
+      if (phone) {
+        const { data: existingPhone } = await admin
+          .from("queue_entries").select("id")
+          .eq("queue_id", queueId).eq("customer_phone", phone)
+          .in("status", ["waiting", "called"])
+          .limit(1);
+        if (existingPhone?.[0]) return json({ error: "You are already in this queue" }, 400);
+      }
 
       const { data: lastWaiting } = await admin
         .from("queue_entries").select("position")

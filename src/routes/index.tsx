@@ -245,10 +245,6 @@ function Landing() {
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[#0F6E56]/6 blur-[100px] pointer-events-none" />
         <div className="relative mx-auto grid max-w-6xl w-full items-center gap-12 lg:grid-cols-[1fr_320px]">
           <div>
-            <div className="animate-fade-up inline-flex items-center gap-2.5 bg-white border border-[#DDD9D0] rounded-full px-4 py-1.5 text-xs text-[#7A7A72] mb-8 shadow-sm">
-              <span className="relative h-2 w-2 rounded-full bg-[#0F6E56] animate-pulse" />
-              Live in Rwanda · Free to start
-            </div>
             <h1 className="animate-fade-up delay-100 text-[clamp(52px,8vw,96px)] leading-[0.95] tracking-[-0.03em] text-[#0E0E0C] max-w-4xl" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 800 }}>
               Your customers<br />
               <span className="text-[#0F6E56]">deserve better</span><br />

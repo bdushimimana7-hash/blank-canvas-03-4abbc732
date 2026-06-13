@@ -51,9 +51,19 @@ export default function StatusPage() {
 
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
-    const interval = window.setInterval(refresh, 3000);
-    return () => window.clearInterval(interval);
-  }, [refresh]);
+    if (!entryId) return;
+    const channel = supabase
+      .channel("status-" + entryId)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "queue_entries", filter: `id=eq.${entryId}` },
+        () => refresh(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [entryId, refresh]);
 
   useEffect(() => {
     const onTouchStart = (e: TouchEvent) => {
@@ -325,7 +335,7 @@ export default function StatusPage() {
         </button>
 
         <p className="mt-6 text-xs text-[#7A7A72] text-center">
-          This page updates every few seconds. Pull down to refresh on mobile.
+          This page updates automatically. Pull down to refresh on mobile.
         </p>
       </div>
     </div>

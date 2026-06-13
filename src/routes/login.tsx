@@ -18,7 +18,14 @@ export default function LoginPage() {
   const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => { document.title = "Sign in — Possac"; }, []);
-  useEffect(() => { callSignup("ensure_seed_superadmin").catch(() => {}); }, []);
+  useEffect(() => {
+    const checkedAt = Number(localStorage.getItem("possac_seed_checked") ?? "0");
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    if (checkedAt && Date.now() - checkedAt < oneDayMs) return;
+    callSignup("ensure_seed_superadmin")
+      .then(() => localStorage.setItem("possac_seed_checked", Date.now().toString()))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     if (loading || !user) return;
     if (role === "superadmin") navigate("/superadmin");
