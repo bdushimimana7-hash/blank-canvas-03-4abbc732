@@ -122,26 +122,16 @@ Deno.serve(async (req) => {
 
       const today = new Date().toISOString().slice(0, 10);
       let queueId: string | null = null;
-      const { data: queue, error: queueErr } = await admin.from("queues")
-        .upsert({ business_id: businessId, date: today }, { onConflict: "business_id,date" })
-        .select("id").single();
-      if (queueErr) return json({ error: queueErr.message }, 500);
-      queueId = queue?.id ?? null;
-      if (!queueId) return json({ error: "Could not create queue" }, 500);
-
-      const { count: totalEntries } = await admin
-        .from("queue_entries").select("id", { count: "exact", head: true })
-        .eq("queue_id", queueId);
-      if ((totalEntries ?? 0) >= 500) return json({ error: "Queue is full for today" }, 400);
-
-      if (phone) {
-        const { data: existingPhone } = await admin
-          .from("queue_entries").select("id")
-          .eq("queue_id", queueId).eq("customer_phone", phone)
-          .in("status", ["waiting", "called"])
-          .limit(1);
-        if (existingPhone?.[0]) return json({ error: "You are already in this queue" }, 400);
+      const { data: existing } = await admin
+        .from("queues").select("id").eq("business_id", businessId).eq("date", today)
+        .order("created_at", { ascending: true }).limit(1);
+      if (existing?.[0]) queueId = existing[0].id;
+      else {
+        const { data: created } = await admin
+          .from("queues").insert({ business_id: businessId, date: today }).select("id").single();
+        queueId = created?.id ?? null;
       }
+      if (!queueId) return json({ error: "Could not create queue" }, 500);
 
       const { data: lastWaiting } = await admin
         .from("queue_entries").select("position")
@@ -286,8 +276,9 @@ Deno.serve(async (req) => {
 
       if (entry.customer_phone) {
         const { data: biz } = await admin
-          .from("businesses").select("name").eq("id", entry.business_id).maybeSingle();
-        const msg = `You have been removed from the queue at ${biz?.name ?? "the business"}. You can rejoin anytime by scanning the QR code.`;
+          .from("businesses").select("name, sms_template_add").eq("id", entry.business_id).maybeSingle();
+        // Use a neutral removal message — not the join template since position/wait don't apply
+        const msg = `Hi ${entry.customer_name}, you have been removed from the queue at ${biz?.name ?? "the business"}. You can rejoin anytime by scanning the QR code.`;
         sendPindoSms(admin, entry.customer_phone, msg, { businessId: entry.business_id, messageType: "removal", customerName: entry.customer_name });
       }
 

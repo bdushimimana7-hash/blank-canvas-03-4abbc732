@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { Toaster } from "sonner";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import IndexPage from "./routes/index";
 import LoginPage from "./routes/login";
 import SignupPage from "./routes/signup";
@@ -45,24 +46,26 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<IndexPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/setup" element={<SetupPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/queue" element={<LiveQueue />} />
-          <Route path="/queue-add" element={<AddToQueue />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/superadmin" element={<SuperAdmin />} />
-          <Route path="/join/:businessId" element={<JoinPage />} />
-          <Route path="/status/:entryId" element={<StatusPage />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<IndexPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/setup" element={<SetupPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/history" element={<History />} />
+            <Route path="/queue" element={<LiveQueue />} />
+            <Route path="/queue-add" element={<AddToQueue />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/superadmin" element={<SuperAdmin />} />
+            <Route path="/join/:businessId" element={<JoinPage />} />
+            <Route path="/status/:entryId" element={<StatusPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ErrorBoundary>
       </BrowserRouter>
       <Toaster richColors position="top-center" />
     </QueryClientProvider>

@@ -119,16 +119,29 @@ export default function LiveQueue() {
     if (businessId) load(true);
   }, [businessId, load]);
 
+  // Realtime: subscribe to today's queue_id specifically — not all business entries
+  // This avoids triggering on historical data from previous days
   useEffect(() => {
     if (!businessId) return;
-    const ch = supabase.channel("queue-" + businessId)
-      .on("postgres_changes", {
-        event: "*", schema: "public", table: "queue_entries",
-        filter: `business_id=eq.${businessId}`,
-      }, () => load(false))
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [businessId, load]);
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    supabase.from("queues")
+      .select("id")
+      .eq("business_id", businessId)
+      .eq("date", today)
+      .maybeSingle()
+      .then(({ data: q }) => {
+        if (!q) return;
+        channel = supabase.channel("queue-" + q.id)
+          .on("postgres_changes", {
+            event: "*", schema: "public", table: "queue_entries",
+            filter: `queue_id=eq.${q.id}`,
+          }, () => load(false))
+          .subscribe();
+      });
+
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, [businessId, today, load]);
 
   const triggerHeadsup = async () => {
     if (!businessId) return;
