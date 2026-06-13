@@ -197,6 +197,7 @@ function Landing() {
             <a href="#how" className="text-[#7A7A72] hover:text-[#0E0E0C] transition-colors">How it works</a>
             <a href="#sms" className="text-[#7A7A72] hover:text-[#0E0E0C] transition-colors">SMS</a>
             <a href="#sectors" className="text-[#7A7A72] hover:text-[#0E0E0C] transition-colors">Who it's for</a>
+            <a href="#contact" className="text-[#7A7A72] hover:text-[#0E0E0C] transition-colors">Contact</a>
           </div>
           <div className="flex items-center gap-2">
             <Link to="/login" className="text-sm text-[#7A7A72] hover:text-[#0E0E0C] transition-colors px-3 py-1.5 hidden sm:block">Sign in</Link>
@@ -503,6 +504,47 @@ function Landing() {
 
       <FaqSection />
 
+      {/* CONTACT */}
+      <section id="contact" className="py-20 sm:py-28 px-5 bg-[#F7F5F0]">
+        <div className="mx-auto max-w-lg">
+          <div className="reveal" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease, transform 0.6s cubic-bezier(0.16,1,0.3,1)" }}>
+            <p className="text-xs font-semibold text-[#0F6E56] uppercase tracking-[0.2em] mb-3">Contact</p>
+            <h2 className="text-[clamp(32px,4vw,48px)] leading-tight tracking-tight text-[#0E0E0C] mb-4" style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>
+              We'd love to<br />hear from you.
+            </h2>
+            <p className="text-[#7A7A72] mb-10 text-sm leading-relaxed">Question about setup, how it works, or want to try it for your business?</p>
+          </div>
+          <form action="https://formspree.io/f/xbdbongl" method="POST" className="reveal space-y-4" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease 100ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) 100ms" }}>
+            <input type="hidden" name="_subject" value="New Possac enquiry" />
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-[#3A3A35] block mb-1.5">Full name</label>
+                <input type="text" name="name" required placeholder="Your name" className="w-full bg-white border border-[#DDD9D0] rounded-xl px-4 h-11 text-sm outline-none focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/10 transition-all" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#3A3A35] block mb-1.5">Email</label>
+                <input type="email" name="email" required placeholder="your@email.com" className="w-full bg-white border border-[#DDD9D0] rounded-xl px-4 h-11 text-sm outline-none focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/10 transition-all" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#3A3A35] block mb-1.5">Subject</label>
+              <input type="text" name="subject" required placeholder="What is this about?" className="w-full bg-white border border-[#DDD9D0] rounded-xl px-4 h-11 text-sm outline-none focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/10 transition-all" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#3A3A35] block mb-1.5">Message</label>
+              <textarea name="message" required rows={4} placeholder="Tell us more..." className="w-full bg-white border border-[#DDD9D0] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#0F6E56] focus:ring-2 focus:ring-[#0F6E56]/10 transition-all resize-none" />
+            </div>
+            <button type="submit" className="w-full bg-[#0F6E56] text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-[#0a5a44] transition-all duration-200 shadow-lg shadow-[#0F6E56]/20 hover:shadow-[#0F6E56]/30 hover:-translate-y-0.5">
+              Send message →
+            </button>
+          </form>
+          <p className="text-center text-xs text-[#7A7A72] mt-6">
+            Or email us at{" "}
+            <a href="mailto:hello.possac@gmail.com" className="text-[#0F6E56] hover:underline">hello.possac@gmail.com</a>
+          </p>
+        </div>
+      </section>
+
       {/* CTA BANNER */}
       <section className="px-5 py-16">
         <div className="mx-auto max-w-6xl">
@@ -546,7 +588,7 @@ function Landing() {
             <div>
               <div className="text-xs font-bold text-[#0E0E0C] uppercase tracking-widest mb-4">Product</div>
               <div className="space-y-3">
-                {[["#how", "How it works"], ["#sms", "SMS notifications"], ["#sectors", "Industries"], ["/signup", "Get started free"]].map(([href, label]) => (
+                {[["#how", "How it works"], ["#sms", "SMS notifications"], ["#sectors", "Industries"], ["#contact", "Contact us"], ["/signup", "Get started free"]].map(([href, label]) => (
                   <div key={label}>
                     {href.startsWith("#")
                       ? <a href={href} className="text-sm text-[#7A7A72] hover:text-[#0E0E0C] transition-colors">{label}</a>
