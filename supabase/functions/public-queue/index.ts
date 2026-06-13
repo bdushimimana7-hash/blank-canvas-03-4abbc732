@@ -133,10 +133,11 @@ Deno.serve(async (req) => {
       }
       if (!queueId) return json({ error: "Could not create queue" }, 500);
 
-      const { count } = await admin
-        .from("queue_entries").select("id", { count: "exact", head: true })
-        .eq("queue_id", queueId).eq("status", "waiting");
-      const position = (count ?? 0) + 1;
+      const { data: lastWaiting } = await admin
+        .from("queue_entries").select("position")
+        .eq("queue_id", queueId).eq("status", "waiting")
+        .order("position", { ascending: false }).limit(1);
+      const position = (lastWaiting?.[0]?.position ?? 0) + 1;
       const wait = position * AVG_SERVICE_MIN_FALLBACK;
 
       const { data: entry, error: insErr } = await admin.from("queue_entries").insert({
@@ -198,62 +199,60 @@ Deno.serve(async (req) => {
     }
 
     // ── pushback ──────────────────────────────────────────────────────────────
-    // Moves the customer back in queue by N minutes worth of positions
+    // Moves the customer to the end of the current waiting list.
     if (action === "pushback") {
       const entryId = String(data?.entryId ?? "");
-      const delayMinutes = Number(data?.delayMinutes ?? 15);
       if (!entryId) return json({ error: "Missing entryId" }, 400);
-      if (![15, 30, 45].includes(delayMinutes)) return json({ error: "Invalid delay" }, 400);
 
       const { data: entry } = await admin
         .from("queue_entries")
-        .select("id, status, position, queue_id, business_id, customer_name, customer_phone, wait_minutes")
+        .select("id, status, position, queue_id, business_id, customer_name, customer_phone")
         .eq("id", entryId).maybeSingle();
       if (!entry) return json({ error: "Entry not found" }, 404);
       if (entry.status !== "waiting") return json({ error: "Can only push back waiting entries" }, 400);
 
-      // Calculate positions to move back
-      const { data: served } = await admin
-        .from("queue_entries").select("added_at, served_at")
-        .eq("business_id", entry.business_id).eq("status", "served")
-        .not("served_at", "is", null).limit(50);
-      let avgMin = AVG_SERVICE_MIN_FALLBACK;
-      if (served && served.length > 0) {
-        const durs = served
-          .map((s) => (new Date(s.served_at as string).getTime() - new Date(s.added_at).getTime()) / 60000)
-          .filter((m) => m > 0 && m < 240);
-        if (durs.length) avgMin = Math.max(1, Math.round(durs.reduce((a, b) => a + b, 0) / durs.length));
-      }
-      const positionsToMove = Math.max(1, Math.round(delayMinutes / avgMin));
-
-      // Find total waiting entries
-      const { count: totalWaiting } = await admin
-        .from("queue_entries").select("id", { count: "exact", head: true })
-        .eq("queue_id", entry.queue_id).eq("status", "waiting");
+      const { data: waiting, count: totalWaiting, error: waitingErr } = await admin
+        .from("queue_entries").select("position", { count: "exact" })
+        .eq("queue_id", entry.queue_id).eq("status", "waiting")
+        .order("position", { ascending: false }).limit(1);
+      if (waitingErr) return json({ error: waitingErr.message }, 500);
       const total = totalWaiting ?? 0;
+      if (total <= 1) return json({ error: "You are the only person waiting" }, 400);
 
-      const newPosition = Math.min(entry.position + positionsToMove, total);
+      const lastPosition = waiting?.[0]?.position ?? entry.position;
+      const newPosition = lastPosition + 1;
+
+      const { data: biz } = await admin
+        .from("businesses")
+        .select("name, sms_template_add, avg_service_mins")
+        .eq("id", entry.business_id).maybeSingle();
+      const avgMin = Math.max(1, Number(biz?.avg_service_mins ?? AVG_SERVICE_MIN_FALLBACK));
 
       // Shift entries between old and new position forward by 1
       if (newPosition > entry.position) {
-        await admin.rpc("shift_queue_positions", {
+        const { error: shiftErr } = await admin.rpc("shift_queue_positions", {
           _queue_id: entry.queue_id,
           _old_position: entry.position,
           _new_position: newPosition,
         });
+        if (shiftErr) return json({ error: shiftErr.message }, 500);
       }
 
       // Update this entry's position and wait
       const newWait = newPosition * avgMin;
-      await admin.from("queue_entries")
+      const { error: updateErr } = await admin.from("queue_entries")
         .update({ position: newPosition, wait_minutes: newWait })
         .eq("id", entryId);
+      if (updateErr) return json({ error: updateErr.message }, 500);
 
       // Send updated SMS if phone available
-      if (entry.customer_phone) {
-        const { data: biz } = await admin
-          .from("businesses").select("name").eq("id", entry.business_id).maybeSingle();
-        const msg = `Hi ${entry.customer_name}, your spot has been moved to #${newPosition} at ${biz?.name ?? "the queue"}. Estimated wait: ${newWait} min. We'll alert you when you're close.`;
+      if (entry.customer_phone && biz?.sms_template_add) {
+        const msg = fillTemplate(biz.sms_template_add, {
+          name: entry.customer_name,
+          position: newPosition,
+          wait: newWait,
+          business: biz.name ?? "",
+        });
         sendPindoSms(admin, entry.customer_phone, msg, { businessId: entry.business_id, messageType: "pushback", customerName: entry.customer_name });
       }
 

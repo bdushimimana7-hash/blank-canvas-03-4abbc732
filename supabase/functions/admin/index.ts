@@ -235,6 +235,17 @@ Deno.serve(async (req) => {
           await admin.auth.admin.deleteUser(created.user.id);
           return json({ error: be.message }, 400);
         }
+
+        await sendEmail(
+          owner_email,
+          `Welcome to ${biz.name} on Possac`,
+          ownerWelcomeEmail({
+            ownerName: owner_name || "there",
+            businessName: biz.name,
+            email: owner_email,
+          }),
+        ).catch((e) => console.error("Owner email error", e));
+
         return json({ success: true, business_id: biz.id, user_id: created.user.id });
       }
 
