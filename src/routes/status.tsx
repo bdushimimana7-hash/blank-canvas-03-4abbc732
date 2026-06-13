@@ -9,7 +9,7 @@ interface StatusData {
   status: "waiting" | "called" | "served" | "no_show" | string;
   position: number;       // original join position (doesn't change)
   livePosition: number;   // current live position (updates as queue moves)
-  ahead: number;          // number of people currently waiting ahead
+  ahead: number;          // legacy live waiting count from the API
   totalWaiting: number;   // total people currently waiting
   waitMinutes: number;    // calculated: ahead × avg_service_mins
   businessName: string;
@@ -160,8 +160,8 @@ export default function StatusPage() {
 
   // Use livePosition if available, fall back to position
   const displayPosition = data.livePosition ?? data.position;
-  const displayAhead = data.ahead ?? 0;
-  const totalInQueue = data.totalWaiting ?? (displayAhead + (isWaiting ? 1 : 0));
+  const displayAhead = Math.max(0, displayPosition - 1);
+  const totalInQueue = Math.max(displayPosition, data.totalWaiting ?? displayPosition);
   const progressPct = totalInQueue > 0
     ? Math.max(8, Math.min(98, ((totalInQueue - displayAhead) / totalInQueue) * 100))
     : 50;

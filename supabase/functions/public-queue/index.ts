@@ -222,11 +222,12 @@ Deno.serve(async (req) => {
       const lastPosition = waiting?.[0]?.position ?? entry.position;
       const newPosition = lastPosition + 1;
 
-      const { data: biz } = await admin
+      const { data: biz, error: bizErr } = await admin
         .from("businesses")
         .select("name, sms_template_add, avg_service_mins")
         .eq("id", entry.business_id).maybeSingle();
-      const avgMin = Math.max(1, Number(biz?.avg_service_mins ?? AVG_SERVICE_MIN_FALLBACK));
+      if (bizErr) return json({ error: bizErr.message }, 500);
+      const avgServiceMins = Math.max(1, Number(biz?.avg_service_mins ?? AVG_SERVICE_MIN_FALLBACK));
 
       // Shift entries between old and new position forward by 1
       if (newPosition > entry.position) {
@@ -239,7 +240,7 @@ Deno.serve(async (req) => {
       }
 
       // Recalculate wait from the new position and the business service time.
-      const recalculatedWaitMinutes = newPosition * avgMin;
+      const recalculatedWaitMinutes = newPosition * avgServiceMins;
       const { error: updateErr } = await admin.from("queue_entries")
         .update({ position: newPosition, wait_minutes: recalculatedWaitMinutes })
         .eq("id", entryId);
