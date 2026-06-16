@@ -96,12 +96,12 @@ function HeroPhoneMockup() {
                 <div className="text-5xl font-extrabold text-[#0F6E56] leading-none" style={{ fontFamily: "'Syne', sans-serif" }}>#4</div>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                   <div className="rounded-xl bg-[#E8F5F1] p-2.5">
-                    <div className="text-[9px] text-[#7A7A72]">Ahead</div>
+                    <div className="text-[9px] text-[#7A7A72]">Abari imbere</div>
                     <div className="text-sm font-bold text-[#0E0E0C]">3</div>
                   </div>
                   <div className="rounded-xl bg-[#F3F4F6] p-2.5">
-                    <div className="text-[9px] text-[#7A7A72]">Wait</div>
-                    <div className="text-sm font-bold text-[#0E0E0C]">25m</div>
+                    <div className="text-[9px] text-[#7A7A72]">Igihe utegereza</div>
+                    <div className="text-sm font-bold text-[#0E0E0C]">Iminota 45</div>
                   </div>
                 </div>
                 <div className="mt-3 h-1.5 w-full bg-[#E5E7EB] rounded-full overflow-hidden">
