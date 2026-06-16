@@ -331,7 +331,7 @@ function Landing() {
         <div className="absolute inset-0">
           {/* Intentionally neutral photo — person using phone, not healthcare-specific */}
           <img
-            src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1800&q=85&auto=format&fit=crop&crop=center"
+            src="https://images.unsplash.com/photo-1504439468489-c8920d796a29?w=1800&q=85&auto=format&fit=crop&crop=center"
             alt=""
             className="w-full h-full object-cover object-center"
             loading="eager"
