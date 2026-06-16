@@ -517,9 +517,9 @@ function Landing() {
                   <div className="h-2 w-2 rounded-full bg-[#0F6E56] animate-pulse" />
                 </div>
                 {[
-                  { time: "Now", body: "Hi Amina, you are #4 at City Clinic. Estimated wait: 35 min. We'll alert you when you're close.", tag: "Joined", color: "bg-[#0F6E56]" },
-                  { time: "25 min later", body: "Hi Amina, you're 3rd in line at City Clinic. Please start making your way back.", tag: "Heads-up", color: "bg-[#1a5c48]" },
-                  { time: "10 min later", body: "Hi Amina, it's your turn at City Clinic. Please come in now.", tag: "Your turn", color: "bg-[#0F6E56]" },
+                  { time: "Akinjira kumurongo", body: "Muraho Amina, muri nimero ya #9 kuri Butaro Health Centre. Murakirwa muri iki gihe: isaha 1 n'iminota 20. Turabamenyesha nimujya kugerwaho.", tag: "Joined", color: "bg-[#0F6E56]" },
+                  { time: "Agezeho kuri nimero ya 3 kwakirwa", body: "Muraho Amina, muri nimero ya #3 kuri Butaro Health Centre. Mushobora gutangira kugaruka ubu.", tag: "Heads-up", color: "bg-[#1a5c48]" },
+                  { time: "Agezweho kwakirwa", body: "Muraho Amina, nimwe mukurikiraho kwakirwa kuri Butaro Health Centre. Mwakwinjira cg mukamenyesha abakozi ko mwahageze.", tag: "Your turn", color: "bg-[#0F6E56]" },
                 ].map((m, i) => (
                   <div key={i}>
                     <div className="text-[10px] text-[#3A3A32] mb-2 uppercase tracking-wider font-medium">{m.time}</div>
