@@ -110,15 +110,15 @@ function HeroPhoneMockup() {
               </div>
               <div className="rounded-2xl bg-[#0F6E56] px-4 py-3 text-white">
                 <div className="text-[9px] text-white/60 mb-1">SMS sent</div>
-                <p className="text-xs leading-relaxed">You are 3rd in line. Please start making your way back now.</p>
+                <p className="text-xs leading-relaxed">Muraho Amina, muri nimero ya #3 kuri Butaro Health Centre. Mushobora gutangira kugaruka ubu.</p>
               </div>
               <div className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-[#0F6E56] flex items-center justify-center shrink-0">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 .18h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z" /></svg>
                 </div>
                 <div>
-                  <div className="text-[9px] text-[#9CA3AF]">Your turn!</div>
-                  <div className="text-xs font-semibold text-[#0E0E0C]">Come in now →</div>
+                  <div className="text-[9px] text-[#9CA3AF]">Nimwe mugezweho!</div>
+                  <div className="text-xs font-semibold text-[#0E0E0C]">Mwakwinjira mukakirwa →</div>
                 </div>
               </div>
             </div>
