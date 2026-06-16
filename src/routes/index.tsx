@@ -84,7 +84,7 @@ function HeroPhoneMockup() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[9px] uppercase tracking-widest text-[#9CA3AF]">Possac Queue</div>
-                  <div className="text-base font-bold text-[#0E0E0C]" style={{ fontFamily: "'Syne', sans-serif" }}>City Clinic</div>
+                  <div className="text-base font-bold text-[#0E0E0C]" style={{ fontFamily: "'Syne', sans-serif" }}>Butaro Health Centre</div>
                 </div>
                 <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0F6E56] opacity-75" />
