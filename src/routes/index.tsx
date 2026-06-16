@@ -492,7 +492,7 @@ function Landing() {
                 Customers always know<br /><span className="text-[#0F6E56]">where they stand.</span>
               </h2>
               <p className="text-[#7A7A72] leading-relaxed mb-10">
-                Three automatic messages. Fully customizable in Kinyarwanda, English, or French. Works on every phone — no internet required to receive updates.
+                Ubutumwa bugufi butatu buhabwa umukiliya. Bwanditswe mu Kinyarwanda, Icyongereza, cyangwa Igifaransa. Bugera kuri terefoni yose — nta murandasi ikenewe.
               </p>
               <div className="space-y-4">
                 {[
