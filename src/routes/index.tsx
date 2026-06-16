@@ -1,6 +1,3 @@
-bash
-
-cat > /mnt/user-data/outputs/final-fixes/src/routes/index.tsx << 'ENDOFFILE'
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSession } from "@/hooks/useSession";
