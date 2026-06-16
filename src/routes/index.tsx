@@ -175,7 +175,29 @@ function FaqSection() {
 }
 
 function ContactSection() {
-  const [sent, setSent] = useState(false);
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStatus("sending");
+    try {
+      const form = e.currentTarget;
+      const res = await fetch("https://formspree.io/f/xbdbongl", {
+        method: "POST",
+        headers: { "Accept": "application/json" },
+        body: new FormData(form),
+      });
+      if (res.ok) {
+        setStatus("sent");
+        form.reset();
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
+  }
+
   return (
     <section id="contact" className="py-28 px-5 bg-[#F7F5F0]">
       <div className="mx-auto max-w-5xl">
@@ -212,7 +234,7 @@ function ContactSection() {
           </div>
 
           <div className="reveal" style={{ opacity: 0, transform: "translateY(24px)", transition: "opacity 0.6s ease 150ms, transform 0.6s cubic-bezier(0.16,1,0.3,1) 150ms" }}>
-            {sent ? (
+            {status === "sent" ? (
               <div className="bg-white border border-[#E5E7EB] rounded-3xl p-10 text-center shadow-sm">
                 <div className="w-16 h-16 rounded-full bg-[#E8F5F1] flex items-center justify-center mx-auto mb-5">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -223,12 +245,7 @@ function ContactSection() {
                 <p className="text-sm text-[#7A7A72]">We'll get back to you within 24 hours.</p>
               </div>
             ) : (
-              <form
-                action="https://formspree.io/f/xbdbongl"
-                method="POST"
-                onSubmit={() => setSent(true)}
-                className="bg-white border border-[#E5E7EB] rounded-3xl p-8 shadow-sm space-y-5">
-                <input type="hidden" name="_subject" value="New Possac enquiry" />
+              <form onSubmit={handleSubmit} className="bg-white border border-[#E5E7EB] rounded-3xl p-8 shadow-sm space-y-5">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-semibold text-[#374151] uppercase tracking-wider block mb-2">Full name</label>
@@ -260,9 +277,12 @@ function ContactSection() {
                   <textarea name="message" required rows={4} placeholder="Tell us about your business and what you'd like to know..."
                     className="w-full bg-[#F7F5F0] border border-[#E5E7EB] rounded-xl px-4 py-3.5 text-sm outline-none focus:border-[#0F6E56] focus:bg-white transition-all resize-none" />
                 </div>
-                <button type="submit"
-                  className="w-full bg-[#0F6E56] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-[#0a5a44] transition-all duration-200 shadow-lg shadow-[#0F6E56]/20 hover:shadow-[#0F6E56]/30 hover:-translate-y-0.5">
-                  Send message →
+                {status === "error" && (
+                  <p className="text-sm text-red-500 text-center">Something went wrong. Please try again or email us directly.</p>
+                )}
+                <button type="submit" disabled={status === "sending"}
+                  className="w-full bg-[#0F6E56] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-[#0a5a44] transition-all duration-200 shadow-lg shadow-[#0F6E56]/20 hover:shadow-[#0F6E56]/30 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0">
+                  {status === "sending" ? "Sending..." : "Send message →"}
                 </button>
               </form>
             )}
