@@ -347,7 +347,7 @@ function Landing() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2DD4A0] opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2DD4A0]" />
               </span>
-              No more physical waiting rooms
+              Patients no longer need to crowd your reception
             </div>
 
             <h1 className="animate-fade-up delay-100 text-[clamp(48px,7vw,86px)] leading-[0.93] tracking-[-0.03em] text-white font-black max-w-2xl" style={{ fontFamily: "'Syne', sans-serif" }}>
@@ -357,7 +357,7 @@ function Landing() {
             </h1>
 
             <p className="animate-fade-up delay-200 mt-7 text-lg text-white/65 max-w-xl leading-relaxed font-light">
-              Possac gives any business a virtual queue in minutes. Customers scan a QR, wait from anywhere, and receive an SMS when it's their turn.
+              Possac gives health facilities a virtual queue in minutes. Patients scan a QR code or staff adds them at reception, wait from anywhere, and receive an SMS when it's their turn — no app needed.
             </p>
 
             <div className="animate-fade-up delay-300 mt-9 flex flex-wrap items-center gap-3">
@@ -584,9 +584,9 @@ function Landing() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             {[
-              { name: "Aline Mukamana", business: "Salon owner, Remera", initials: "AM", quote: "Our waiting area feels calm now. Clients scan, leave for errands, and come back when the SMS arrives. No more crowding at the door." },
               { name: "Jean Bosco Ndayisaba", business: "Pharmacy manager, Nyamirambo", initials: "JB", quote: "Possac helped us reduce crowding during busy evenings without buying any hardware or training customers on a new app." },
               { name: "Claudine Uwera", business: "SACCO branch lead, Musanze", initials: "CU", quote: "The staff dashboard is simple enough for the whole team. Customers trust the queue because they can check their position anytime." },
+              { name: "Aline Mukamana", business: "Salon owner, Remera", initials: "AM", quote: "Our waiting area feels calm now. Clients scan, leave for errands, and come back when the SMS arrives. No more crowding at the door." },
             ].map((t, i) => (
               <article key={t.name}
                 className="reveal rounded-3xl border border-[#E5E7EB] bg-[#F7F5F0] p-7 hover:border-[#0F6E56]/20 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
