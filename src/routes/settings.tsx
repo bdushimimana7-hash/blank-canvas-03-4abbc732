@@ -81,6 +81,21 @@ export default function SettingsPage() {
 
   const save = async () => {
     if (!businessId) return;
+    const validVars = ["{name}", "{business}", "{position}", "{wait}"];
+    const brokenIn = (tpl: string, label: string) => {
+      const bad = (tpl.match(/\{[^}]+\}/g) ?? []).filter(t => !validVars.includes(t));
+      return bad.length > 0 ? `${label}: ${bad.join(", ")}` : null;
+    };
+    const errors = [
+      brokenIn(tplAdd, "Message 1"),
+      brokenIn(tplFirst, "Message 2"),
+      brokenIn(tplHeadsup, "Message 3"),
+      brokenIn(tplCall, "Message 4"),
+    ].filter(Boolean);
+    if (errors.length > 0) {
+      toast.error(`Fix these before saving — unknown variables found:\n${errors.join("\n")}`);
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.from("businesses").update({
       name, sector,
@@ -374,8 +389,6 @@ function TemplateEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preview = fillTemplate(value, previewVars);
   const chars = value.length;
-  const over = chars > 160;
-
   const insertVar = (varKey: string) => {
     const el = textareaRef.current;
     if (!el) return;
@@ -413,6 +426,12 @@ function TemplateEditor({
 
           {/* Variable chips — click to insert */}
           <div>
+            <div className="rounded-xl bg-[#E8F5F1] border border-[#0F6E56]/20 px-4 py-3 mb-3">
+              <p className="text-xs font-semibold text-[#0F6E56] mb-0.5">Translate freely — but protect the special words</p>
+              <p className="text-xs text-[#3A6B5A] leading-relaxed">
+                Words like <code className="bg-white/70 px-1 rounded font-mono">{"{name}"}</code> and <code className="bg-white/70 px-1 rounded font-mono">{"{position}"}</code> are filled in automatically. Write around them — do not translate or delete them.
+              </p>
+            </div>
             <div className="text-xs font-medium text-[#7A7A72] mb-2">Click to insert:</div>
             <div className="flex flex-wrap gap-2">
               {VARS.map((v) => (
@@ -434,9 +453,14 @@ function TemplateEditor({
               onChange={(e) => onChange(e.target.value)}
               className="w-full rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] px-3 py-2.5 text-sm outline-none focus:border-[#0F6E56] resize-none transition-colors"
             />
-            <div className={`text-right text-xs mt-1 ${over ? "text-red-500 font-medium" : "text-[#7A7A72]"}`}>
-              {chars}/160 characters{over && " — SMS will split into 2 messages"}
+            <div className="text-right text-xs mt-1 text-[#7A7A72]">
+              {chars} characters
             </div>
+            {(value.match(/\{[^}]+\}/g) ?? []).filter(t => !["{name}","{business}","{position}","{wait}"].includes(t)).length > 0 && (
+              <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                ⚠️ Unknown variable detected: <strong>{(value.match(/\{[^}]+\}/g) ?? []).filter(t => !["{name}","{business}","{position}","{wait}"].includes(t)).join(", ")}</strong> — this will appear as-is in the SMS. Delete it and use the buttons above instead.
+              </div>
+            )}
           </div>
 
           {/* Live preview with real values */}
