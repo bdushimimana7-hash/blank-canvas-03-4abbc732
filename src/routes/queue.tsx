@@ -12,7 +12,7 @@ interface Entry {
   id: string; customer_name: string; customer_phone: string;
   position: number; status: "waiting" | "called" | "served" | "no_show";
   added_at: string; called_at: string | null; served_at: string | null;
-  headsup_sent: boolean; added_by: string | null;
+  headsup_sent: boolean; added_by: string | null; is_urgent: boolean;
 }
 
 function waitMinutes(addedAt: string) {
