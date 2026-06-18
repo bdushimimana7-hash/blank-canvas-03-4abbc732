@@ -207,6 +207,30 @@ export default function LiveQueue() {
     toast.success("Marked as arrived");
   };
 
+  const promoteToUrgent = async (e: Entry) => {
+    if (!businessId) return;
+    // Find the current position-1 patient (who will be displaced)
+    const currentFirst = entries.find((en) => en.status === "waiting" && en.position === 1 && en.id !== e.id);
+    // Push all waiting entries that are ahead of or at position 1 down by 1
+    const toShift = entries.filter((en) => en.status === "waiting" && en.id !== e.id);
+    await Promise.all(toShift.map((w) =>
+      supabase.from("queue_entries").update({ position: w.position + 1 }).eq("id", w.id)
+    ));
+    // Set this entry to position 1 and mark urgent
+    const { error } = await supabase.from("queue_entries")
+      .update({ position: 1, is_urgent: true }).eq("id", e.id);
+    if (error) { toast.error("Could not promote patient"); return; }
+    toast.success(`${e.customer_name} moved to position 1`);
+    // Notify only the person who was at position 1 — they're the one who was about to be called
+    if (currentFirst?.customer_phone) {
+      const msg = `Hi ${currentFirst.customer_name}, an urgent patient has been prioritised ahead of you at ${businessName ?? "the clinic"}. You are now number 2. Thank you for your understanding.`;
+      sendSmsViaEdge(currentFirst.customer_phone, msg, {
+        businessId: businessId!, messageType: "other", customerName: currentFirst.customer_name,
+      }).catch(() => {});
+    }
+    load(false);
+  };
+
   if (loading || !ready) return <QueueSkeleton />;
 
   const waiting = entries.filter((e) => e.status === "waiting").length;
