@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/external-client";
 import { useSession } from "@/hooks/useSession";
@@ -10,7 +10,7 @@ import { SECTORS } from "@/lib/sectors";
 import { fillTemplate } from "@/lib/format";
 import { toast } from "sonner";
 import { callAdmin } from "@/lib/edge-functions";
-import { ArrowLeft, Send, Trash2, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Send, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 interface StaffRow { id: string; user_id: string; full_name: string; role: string; }
 interface SmsLogRow {
@@ -18,24 +18,13 @@ interface SmsLogRow {
   message: string; message_type: string; status: string; created_at: string;
 }
 
-// Canonical variable tokens — these are the ONLY valid ones
+// Variables available in templates
 const VARS = [
-  { key: "{name}",     label: "Customer name", example: "Jean"        },
-  { key: "{business}", label: "Business name",  example: "Salon Belle" },
-  { key: "{position}", label: "Queue position", example: "3"           },
-  { key: "{wait}",     label: "Wait time (min)",example: "15"          },
+  { key: "{name}",     label: "Customer name", example: "Jean"         },
+  { key: "{business}", label: "Business name",  example: "Salon Belle"  },
+  { key: "{position}", label: "Queue position", example: "3"            },
+  { key: "{wait}",     label: "Wait time (min)",example: "15"           },
 ];
-const VAR_KEYS = new Set(VARS.map((v) => v.key));
-
-// Detect any {word} tokens that are NOT valid variable keys
-function hasBrokenVars(tpl: string): string[] {
-  const found: string[] = [];
-  const matches = tpl.match(/\{[^}]+\}/g) ?? [];
-  for (const m of matches) {
-    if (!VAR_KEYS.has(m)) found.push(m);
-  }
-  return found;
-}
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -92,13 +81,6 @@ export default function SettingsPage() {
 
   const save = async () => {
     if (!businessId) return;
-    // Block save if any template has broken variables
-    const allTpls = [tplAdd, tplFirst, tplHeadsup, tplCall];
-    const allBroken = allTpls.flatMap(hasBrokenVars);
-    if (allBroken.length > 0) {
-      toast.error(`Fix broken variables before saving: ${[...new Set(allBroken)].join(", ")}`);
-      return;
-    }
     setSaving(true);
     const { error } = await supabase.from("businesses").update({
       name, sector,
@@ -113,6 +95,7 @@ export default function SettingsPage() {
   const onInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!businessId) return;
+    // Basic email validation
     const emailRegex = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(inviteEmail.trim())) {
       toast.error("Please enter a valid email address");
@@ -187,7 +170,7 @@ export default function SettingsPage() {
         <section className="bg-white border border-[#DDD9D0] rounded-2xl p-6 shadow-sm">
           <SectionHeading title="SMS Messages" />
           <p className="text-sm text-[#7A7A72] mt-1 mb-5">
-            These messages are sent automatically to your customers. Write your text — use the buttons below to insert the parts that change automatically (name, position, etc.).
+            These messages are sent automatically to your customers. Edit the text — the highlighted words are replaced automatically with real values.
           </p>
 
           <div className="space-y-4">
@@ -373,30 +356,8 @@ export default function SettingsPage() {
   );
 }
 
-// ─── Template Editor ──────────────────────────────────────────────────────────
-//
-// Stores template as a plain string with {name} etc.
-// Renders a contentEditable div that shows variables as green pill-chips.
-// Variables are atomic: you can't type inside them or partially delete them.
-// Plain text between variables is freely editable.
-
-// Split a template string into text segments and variable tokens
-type Segment = { type: "text"; value: string } | { type: "var"; key: string };
-
-function parseTemplate(tpl: string): Segment[] {
-  const segments: Segment[] = [];
-  // Split on any {word} token
-  const parts = tpl.split(/(\{[^}]+\})/g);
-  for (const part of parts) {
-    if (!part) continue;
-    if (/^\{[^}]+\}$/.test(part)) {
-      segments.push({ type: "var", key: part });
-    } else {
-      segments.push({ type: "text", value: part });
-    }
-  }
-  return segments;
-}
+// ─── Template Editor ─────────────────────────────────────────────────────────
+// A friendly editor that shows a live preview with real values instead of {placeholders}
 
 function TemplateEditor({
   label, description, value, onChange, businessName, onTest, previewVars,
@@ -410,172 +371,23 @@ function TemplateEditor({
   previewVars: { name: string; position: number; wait: number; business: string };
 }) {
   const [expanded, setExpanded] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
-  // Track whether we're mid-composition (IME input) to avoid clobbering
-  const composingRef = useRef(false);
-  // Prevent re-reading DOM while we're programmatically updating it
-  const suppressRef = useRef(false);
-
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preview = fillTemplate(value, previewVars);
-  const brokenVars = hasBrokenVars(value);
-  const charCount = value.length;
+  const chars = value.length;
+  const over = chars > 160;
 
-  // Build DOM from the template string value
-  const renderToEditor = useCallback((tpl: string) => {
-    const el = editorRef.current;
+  const insertVar = (varKey: string) => {
+    const el = textareaRef.current;
     if (!el) return;
-    suppressRef.current = true;
-
-    const segments = parseTemplate(tpl);
-    // Save cursor position by finding which text node + offset we're at
-    // We rebuild the DOM and restore the cursor after
-    el.innerHTML = "";
-    for (const seg of segments) {
-      if (seg.type === "text") {
-        el.appendChild(document.createTextNode(seg.value));
-      } else {
-        const isValid = VAR_KEYS.has(seg.key);
-        const chip = document.createElement("span");
-        chip.setAttribute("data-var", seg.key);
-        chip.setAttribute("contenteditable", "false");
-        chip.textContent = VARS.find((v) => v.key === seg.key)?.label ?? seg.key;
-        chip.className = isValid
-          ? "inline-flex items-center mx-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0F6E56] text-white select-none cursor-default"
-          : "inline-flex items-center mx-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600 select-none cursor-default";
-        el.appendChild(chip);
-      }
-    }
-    // Ensure there's always a trailing text node so cursor can be placed at end
-    const last = el.lastChild;
-    if (!last || last.nodeType !== Node.TEXT_NODE) {
-      el.appendChild(document.createTextNode(""));
-    }
-
-    suppressRef.current = false;
-  }, []);
-
-  // Read the DOM back into a template string
-  const readFromEditor = useCallback((): string => {
-    const el = editorRef.current;
-    if (!el) return value;
-    let result = "";
-    for (const node of Array.from(el.childNodes)) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        result += node.textContent ?? "";
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const el = node as HTMLElement;
-        const varKey = el.getAttribute("data-var");
-        if (varKey) {
-          result += varKey; // write back the {name} token, not the display label
-        }
-        // ignore any other elements (browser may insert <br> etc.)
-      }
-    }
-    return result;
-  }, [value]);
-
-  // When value prop changes from outside (initial load), re-render
-  useEffect(() => {
-    if (!expanded) return;
-    renderToEditor(value);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded]);
-
-  // Update when value changes externally (e.g. initial DB load)
-  const prevValueRef = useRef(value);
-  useEffect(() => {
-    if (prevValueRef.current !== value && expanded && !suppressRef.current) {
-      renderToEditor(value);
-    }
-    prevValueRef.current = value;
-  }, [value, expanded, renderToEditor]);
-
-  const handleInput = useCallback(() => {
-    if (suppressRef.current || composingRef.current) return;
-    const newVal = readFromEditor();
-    if (newVal !== value) onChange(newVal);
-  }, [readFromEditor, onChange, value]);
-
-  // Insert a variable at the current cursor position
-  const insertVar = useCallback((varKey: string) => {
-    const el = editorRef.current;
-    if (!el) return;
-    el.focus();
-
-    const sel = window.getSelection();
-    if (sel && sel.rangeCount > 0) {
-      const range = sel.getRangeAt(0);
-      // Delete selection if any
-      range.deleteContents();
-
-      // Build the chip
-      const chip = document.createElement("span");
-      chip.setAttribute("data-var", varKey);
-      chip.setAttribute("contenteditable", "false");
-      chip.textContent = VARS.find((v) => v.key === varKey)?.label ?? varKey;
-      chip.className = "inline-flex items-center mx-0.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-[#0F6E56] text-white select-none cursor-default";
-
-      // Insert chip, then a zero-width text node after it for cursor
-      range.insertNode(document.createTextNode("\u200B")); // zero-width space placeholder, will be overwritten
-      range.insertNode(chip);
-
-      // Move cursor after the chip
-      const newRange = document.createRange();
-      newRange.setStartAfter(chip);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-    }
-
-    const newVal = readFromEditor();
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const newVal = value.slice(0, start) + varKey + value.slice(end);
     onChange(newVal);
-  }, [readFromEditor, onChange]);
-
-  // Handle keydown: intercept Backspace/Delete near chip boundaries
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== "Backspace" && e.key !== "Delete") return;
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    if (!range.collapsed) return; // let browser handle selection deletion
-
-    if (e.key === "Backspace") {
-      // Check if the node immediately before cursor is a chip
-      let node: Node | null = range.startContainer;
-      let offset = range.startOffset;
-      if (node.nodeType === Node.TEXT_NODE && offset === 0) {
-        node = node.previousSibling;
-        offset = -1;
-      } else if (node.nodeType === Node.TEXT_NODE) {
-        return; // normal text deletion, let browser handle
-      } else {
-        // cursor is in element node
-        node = (node as Element).childNodes[offset - 1] ?? null;
-      }
-      if (node && (node as HTMLElement).getAttribute?.("data-var")) {
-        e.preventDefault();
-        node.parentNode?.removeChild(node);
-        const newVal = readFromEditor();
-        onChange(newVal);
-      }
-    } else if (e.key === "Delete") {
-      let node: Node | null = range.startContainer;
-      let offset = range.startOffset;
-      if (node.nodeType === Node.TEXT_NODE && offset === node.textContent!.length) {
-        node = node.nextSibling;
-      } else if (node.nodeType === Node.TEXT_NODE) {
-        return;
-      } else {
-        node = (node as Element).childNodes[offset] ?? null;
-      }
-      if (node && (node as HTMLElement).getAttribute?.("data-var")) {
-        e.preventDefault();
-        node.parentNode?.removeChild(node);
-        const newVal = readFromEditor();
-        onChange(newVal);
-      }
-    }
-  }, [readFromEditor, onChange]);
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(start + varKey.length, start + varKey.length);
+    }, 0);
+  };
 
   return (
     <div className="rounded-xl border border-[#DDD9D0] overflow-hidden">
@@ -601,12 +413,7 @@ function TemplateEditor({
 
           {/* Variable chips — click to insert */}
           <div>
-            <div className="text-xs font-medium text-[#0E0E0C] mb-1">
-              Insert a variable — click to add it to your message:
-            </div>
-            <p className="text-xs text-[#7A7A72] mb-2">
-              These are replaced automatically when the SMS is sent. Do not type them manually.
-            </p>
+            <div className="text-xs font-medium text-[#7A7A72] mb-2">Click to insert:</div>
             <div className="flex flex-wrap gap-2">
               {VARS.map((v) => (
                 <button key={v.key} type="button" onClick={() => insertVar(v.key)}
@@ -618,40 +425,21 @@ function TemplateEditor({
             </div>
           </div>
 
-          {/* Rich-text editor div */}
+          {/* Textarea */}
           <div>
-            <div
-              ref={editorRef}
-              contentEditable
-              suppressContentEditableWarning
-              onInput={handleInput}
-              onKeyDown={handleKeyDown}
-              onCompositionStart={() => { composingRef.current = true; }}
-              onCompositionEnd={() => { composingRef.current = false; handleInput(); }}
-              className="w-full min-h-[72px] rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] px-3 py-2.5 text-sm outline-none focus:border-[#0F6E56] transition-colors leading-7 whitespace-pre-wrap break-words"
-              style={{ wordBreak: "break-word" }}
+            <textarea
+              ref={textareaRef}
+              rows={3}
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="w-full rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] px-3 py-2.5 text-sm outline-none focus:border-[#0F6E56] resize-none transition-colors"
             />
-            {/* Character count — no split warning */}
-            <div className="text-right text-xs mt-1 text-[#7A7A72]">
-              {charCount} characters
+            <div className={`text-right text-xs mt-1 ${over ? "text-red-500 font-medium" : "text-[#7A7A72]"}`}>
+              {chars}/160 characters{over && " — SMS will split into 2 messages"}
             </div>
           </div>
 
-          {/* Broken variable warning */}
-          {brokenVars.length > 0 && (
-            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-              <div>
-                <div className="text-xs font-semibold text-amber-700">Unknown variable detected</div>
-                <div className="text-xs text-amber-600 mt-0.5">
-                  {brokenVars.join(", ")} will not be replaced — it will appear as-is in the SMS.
-                  Delete it and use the buttons above to insert the correct variable.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Live preview */}
+          {/* Live preview with real values */}
           <div className="rounded-xl border border-[#DDD9D0] bg-white p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="text-[10px] uppercase tracking-widest font-medium text-[#7A7A72]">Preview — how it looks to your customer</div>
@@ -670,7 +458,7 @@ function TemplateEditor({
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function SectionHeading({ title }: { title: string }) {
   return (
