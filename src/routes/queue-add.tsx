@@ -47,13 +47,24 @@ export default function AddToQueue() {
       }
       if (!queueId) throw new Error("Could not create today's queue.");
       const { count: wc } = await supabase.from("queue_entries").select("id", { count: "exact", head: true }).eq("queue_id", queueId).eq("status", "waiting");
-      const position = (wc ?? 0) + 1;
+      const position = isUrgent ? 1 : (wc ?? 0) + 1;
       const wait = position * AVG_SERVICE_MIN;
       const { data: biz } = await supabase.from("businesses").select("sms_template_add, sms_template_first").eq("id", businessId).maybeSingle();
+      // If urgent, push all existing waiting entries down by 1
+      if (isUrgent && (wc ?? 0) > 0) {
+        const { data: waiting } = await supabase.from("queue_entries")
+          .select("id, position").eq("queue_id", queueId).eq("status", "waiting").order("position");
+        if (waiting && waiting.length > 0) {
+          await Promise.all(waiting.map((w) =>
+            supabase.from("queue_entries").update({ position: w.position + 1 }).eq("id", w.id)
+          ));
+        }
+      }
       const { error: ie } = await supabase.from("queue_entries").insert({
         queue_id: queueId, business_id: businessId,
         customer_name: name.trim(), customer_phone: formatted ?? "",
         position, status: "waiting", added_by: user!.id, wait_minutes: wait,
+        is_urgent: isUrgent,
       });
       if (ie) throw new Error("Could not add to queue: " + ie.message);
       toast.success(`${copy.customer} added`);
