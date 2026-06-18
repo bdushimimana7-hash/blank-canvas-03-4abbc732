@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+// src/hooks/useSession.ts
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/external-client";
 import type { User } from "@supabase/supabase-js";
 
@@ -21,23 +22,36 @@ export function useSession(): SessionInfo {
   const [businessName, setBusinessName] = useState<string | null>(null);
   const [sector, setSector] = useState<string | null>(null);
 
+  // Track which user we've already loaded for, so we never double-load
+  const loadingForRef = useRef<string | null>(undefined);
+
   useEffect(() => {
     let mounted = true;
 
     const loadFor = async (u: User | null) => {
+      const uid = u?.id ?? null;
+
+      // Skip if we're already loading/loaded for this exact user
+      if (loadingForRef.current === uid) return;
+      loadingForRef.current = uid;
+
       if (!u) {
         if (!mounted) return;
-        setRole(null); setBusinessId(null); setBusinessName(null); setSector(null);
-        setLoading(false); return;
-      }
-
-      try {
-        if (!mounted) return;
+        setUser(null);
         setRole(null);
         setBusinessId(null);
         setBusinessName(null);
         setSector(null);
+        setLoading(false);
+        return;
+      }
 
+      if (mounted) {
+        setUser(u);
+        setLoading(true);
+      }
+
+      try {
         const { data: sp, error: profileError } = await supabase
           .from("staff_profiles")
           .select("business_id, role")
@@ -54,9 +68,10 @@ export function useSession(): SessionInfo {
         if (sp?.role === "owner" || sp?.role === "staff" || sp?.role === "superadmin") {
           resolvedRole = sp.role;
         } else {
-          const { data: superadmin, error: superadminError } = await supabase.rpc("is_superadmin", {
-            _user_id: u.id,
-          });
+          const { data: superadmin, error: superadminError } = await supabase.rpc(
+            "is_superadmin",
+            { _user_id: u.id }
+          );
           if (superadminError) {
             console.error("[useSession] Failed to resolve superadmin role", superadminError);
           } else if (superadmin) {
@@ -88,18 +103,17 @@ export function useSession(): SessionInfo {
       }
     };
 
+    // onAuthStateChange is the single source of truth.
+    // INITIAL_SESSION fires on mount with the current session (or null).
+    // SIGNED_IN fires on login. SIGNED_OUT fires on logout.
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      setUser(session?.user ?? null);
-      setLoading(true);
       loadFor(session?.user ?? null);
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
-      loadFor(data.session?.user ?? null);
-    });
-
-    return () => { mounted = false; sub.subscription.unsubscribe(); };
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   return { user, loading, role, businessId, businessName, sector };
