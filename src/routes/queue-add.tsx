@@ -116,6 +116,18 @@ export default function AddToQueue() {
               className="w-full border border-[#E5E7EB] rounded-xl px-4 h-12 text-[15px] bg-white outline-none focus:border-[#0F6E56] transition-colors" />
             <p className="text-xs text-[#9CA3AF]">Rwanda format: 07XXXXXXXX — leave blank if customer prefers not to share</p>
           </div>
+          <button
+            type="button"
+            onClick={() => setIsUrgent((v) => !v)}
+            className={`w-full rounded-xl border-2 px-4 py-3 text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+              isUrgent
+                ? "border-red-500 bg-red-50 text-red-600"
+                : "border-[#E5E7EB] bg-white text-[#6B7280] hover:border-red-200 hover:text-red-400"
+            }`}>
+            <span className="text-base">{isUrgent ? "🚨" : "⚡"}</span>
+            {isUrgent ? "Urgent — will go to position 1" : "Mark as urgent patient"}
+          </button>
+
           <button type="submit" disabled={submitting}
             className="w-full bg-[#0F6E56] text-white rounded-full font-medium text-[15px] hover:bg-[#0D5E49] transition-colors disabled:opacity-60 mt-2 py-3.5">
             {submitting ? "Adding…" : `Add to queue`}
