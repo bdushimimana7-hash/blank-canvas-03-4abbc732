@@ -17,6 +17,7 @@ export default function AddToQueue() {
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUrgent, setIsUrgent] = useState(false);
 
   useEffect(() => { document.title = "Add to queue — Possac"; }, []);
   useEffect(() => { if (!loading && !user) navigate("/login"); }, [loading, user, navigate]);
