@@ -39,6 +39,7 @@ export default function SuperAdmin() {
     else if (role !== "superadmin") {
       if (role === "owner") navigate("/dashboard");
       else if (role === "staff") navigate("/queue");
+      else navigate("/login"); // role is null — session broken
     }
   }, [user, role, loading, navigate]);
 
