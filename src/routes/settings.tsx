@@ -81,6 +81,21 @@ export default function SettingsPage() {
 
   const save = async () => {
     if (!businessId) return;
+    const validVars = ["{name}", "{business}", "{position}", "{wait}"];
+    const brokenIn = (tpl: string, label: string) => {
+      const bad = (tpl.match(/\{[^}]+\}/g) ?? []).filter(t => !validVars.includes(t));
+      return bad.length > 0 ? `${label}: ${bad.join(", ")}` : null;
+    };
+    const errors = [
+      brokenIn(tplAdd, "Message 1"),
+      brokenIn(tplFirst, "Message 2"),
+      brokenIn(tplHeadsup, "Message 3"),
+      brokenIn(tplCall, "Message 4"),
+    ].filter(Boolean);
+    if (errors.length > 0) {
+      toast.error(`Fix these before saving — unknown variables found:\n${errors.join("\n")}`);
+      return;
+    }
     setSaving(true);
     const { error } = await supabase.from("businesses").update({
       name, sector,
