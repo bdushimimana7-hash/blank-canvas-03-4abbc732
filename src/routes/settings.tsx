@@ -411,8 +411,11 @@ function TemplateEditor({
 
           {/* Variable chips — click to insert */}
           <div>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 mb-3 text-xs text-amber-800 leading-relaxed">
-              ✏️ You can translate this message — but <strong>do not change or translate the words inside curly brackets</strong> like {"{name}"} or {"{position}"}. The system replaces those automatically.
+            <div className="rounded-xl bg-[#E8F5F1] border border-[#0F6E56]/20 px-4 py-3 mb-3">
+              <p className="text-xs font-semibold text-[#0F6E56] mb-0.5">Translate freely — but protect the special words</p>
+              <p className="text-xs text-[#3A6B5A] leading-relaxed">
+                Words like <code className="bg-white/70 px-1 rounded font-mono">{"{name}"}</code> and <code className="bg-white/70 px-1 rounded font-mono">{"{position}"}</code> are filled in automatically. Write around them — do not translate or delete them.
+              </p>
             </div>
             <div className="text-xs font-medium text-[#7A7A72] mb-2">Click to insert:</div>
             <div className="flex flex-wrap gap-2">
