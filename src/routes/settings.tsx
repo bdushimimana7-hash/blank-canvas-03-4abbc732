@@ -411,6 +411,9 @@ function TemplateEditor({
 
           {/* Variable chips — click to insert */}
           <div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 mb-3 text-xs text-amber-800 leading-relaxed">
+              ✏️ You can translate this message — but <strong>do not change or translate the words inside curly brackets</strong> like {"{name}"} or {"{position}"}. The system replaces those automatically.
+            </div>
             <div className="text-xs font-medium text-[#7A7A72] mb-2">Click to insert:</div>
             <div className="flex flex-wrap gap-2">
               {VARS.map((v) => (
