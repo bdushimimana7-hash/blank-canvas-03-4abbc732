@@ -435,9 +435,14 @@ function TemplateEditor({
               onChange={(e) => onChange(e.target.value)}
               className="w-full rounded-xl border border-[#DDD9D0] bg-[#F7F5F0] px-3 py-2.5 text-sm outline-none focus:border-[#0F6E56] resize-none transition-colors"
             />
-            <div className={`text-right text-xs mt-1 ${over ? "text-red-500 font-medium" : "text-[#7A7A72]"}`}>
-              {chars}/160 characters{over && " — SMS will split into 2 messages"}
+            <div className="text-right text-xs mt-1 text-[#7A7A72]">
+              {chars} characters
             </div>
+            {(value.match(/\{[^}]+\}/g) ?? []).filter(t => !["{name}","{business}","{position}","{wait}"].includes(t)).length > 0 && (
+              <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                ⚠️ Unknown variable detected: <strong>{(value.match(/\{[^}]+\}/g) ?? []).filter(t => !["{name}","{business}","{position}","{wait}"].includes(t)).join(", ")}</strong> — this will appear as-is in the SMS. Delete it and use the buttons above instead.
+              </div>
+            )}
           </div>
 
           {/* Live preview with real values */}
