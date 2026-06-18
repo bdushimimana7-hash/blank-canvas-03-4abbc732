@@ -324,7 +324,7 @@ export default function LiveQueue() {
                     const isHere     = arrived.has(e.id);
                     const selfJoined = isSelfJoined(e);
                     return (
-                      <li key={e.id} className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                      <li key={e.id} className={`border rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow ${e.is_urgent ? "bg-red-50 border-red-200" : "bg-white border-[#E5E7EB]"}`}>
                         <div className="flex items-start gap-3">
                           <div className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center font-bold text-white text-base shadow-sm ${e.is_urgent ? "bg-red-500" : "bg-[#0F6E56]"}`} style={{ fontFamily: "'Syne', sans-serif" }}>
                             {e.is_urgent ? "!" : e.position}
@@ -332,7 +332,7 @@ export default function LiveQueue() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-[#111827] text-sm">{e.customer_name}</span>
-                              {e.is_urgent && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-200">🚨 URGENT</span>}
+                              {e.is_urgent && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">🚨 URGENT</span>}
                               {isHere     && <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">Here</span>}
                               {selfJoined && <span className="text-[10px] text-[#0F6E56] bg-[#E8F5F1] px-1.5 py-0.5 rounded-md font-medium">QR</span>}
                               <div className="ml-auto"><WaitBadge addedAt={e.added_at} /></div>
@@ -340,11 +340,17 @@ export default function LiveQueue() {
                             <div className="text-xs text-[#9CA3AF] mt-0.5">
                               {e.customer_phone || "No phone"} · joined {new Date(e.added_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                             </div>
-                            <div className="mt-3 flex gap-2">
+                            <div className="mt-3 flex gap-2 flex-wrap">
                               {selfJoined && !isHere && (
                                 <button onClick={() => markArrived(e.id)}
                                   className="h-8 px-3 border border-green-200 text-green-700 bg-green-50 rounded-lg text-xs font-medium hover:bg-green-100 transition-colors">
                                   Arrived
+                                </button>
+                              )}
+                              {!e.is_urgent && e.position !== 1 && (
+                                <button onClick={() => promoteToUrgent(e)}
+                                  className="h-8 px-3 border border-red-200 text-red-500 bg-red-50 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors">
+                                  🚨 Urgent
                                 </button>
                               )}
                               <button onClick={() => callEntry(e)}
