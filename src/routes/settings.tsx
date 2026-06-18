@@ -374,8 +374,6 @@ function TemplateEditor({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preview = fillTemplate(value, previewVars);
   const chars = value.length;
-  const over = chars > 160;
-
   const insertVar = (varKey: string) => {
     const el = textareaRef.current;
     if (!el) return;
