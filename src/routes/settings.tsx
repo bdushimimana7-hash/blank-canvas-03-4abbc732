@@ -129,6 +129,16 @@ export default function SettingsPage() {
     finally { setInviting(false); }
   };
 
+  const onResetPassword = async (s: StaffRow) => {
+    const newPassword = prompt(`Enter a new temporary password for ${s.full_name} (min 8 characters):`);
+    if (!newPassword) return;
+    if (newPassword.length < 8) { toast.error("Password must be at least 8 characters"); return; }
+    try {
+      await callAdmin("reset_staff_password", { staff_profile_id: s.id, new_password: newPassword });
+      toast.success(`Password updated — tell ${s.full_name} their new password`);
+    } catch (err) { toast.error((err as Error).message); }
+  };
+
   const onRemove = async (id: string) => {
     if (!confirm("Remove this staff member? They will lose access immediately.")) return;
     try {
