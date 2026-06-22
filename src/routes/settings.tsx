@@ -129,6 +129,16 @@ export default function SettingsPage() {
     finally { setInviting(false); }
   };
 
+  const onResetPassword = async (s: StaffRow) => {
+    const newPassword = prompt(`Enter a new temporary password for ${s.full_name} (min 8 characters):`);
+    if (!newPassword) return;
+    if (newPassword.length < 8) { toast.error("Password must be at least 8 characters"); return; }
+    try {
+      await callAdmin("reset_staff_password", { staff_profile_id: s.id, new_password: newPassword });
+      toast.success(`Password updated — tell ${s.full_name} their new password`);
+    } catch (err) { toast.error((err as Error).message); }
+  };
+
   const onRemove = async (id: string) => {
     if (!confirm("Remove this staff member? They will lose access immediately.")) return;
     try {
@@ -282,10 +292,16 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 {s.role !== "owner" && (
-                  <button onClick={() => onRemove(s.id)}
-                    className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => onResetPassword(s)}
+                      className="text-[#7A7A72] hover:text-[#0F6E56] p-2 rounded-lg hover:bg-[#E8F5F1] transition-colors text-xs font-medium px-3">
+                      Reset password
+                    </button>
+                    <button onClick={() => onRemove(s.id)}
+                      className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
