@@ -261,6 +261,27 @@ Deno.serve(async (req) => {
         return json({ success: true, business_id: biz.id, user_id: created.user.id });
       }
 
+      case "reset_staff_password": {
+        const { staff_profile_id, new_password } = data;
+        if (!staff_profile_id || !new_password || new_password.length < 8) {
+          return json({ error: "Invalid input" }, 400);
+        }
+        const { data: sp } = await admin
+          .from("staff_profiles").select("id, user_id, business_id, role, full_name").eq("id", staff_profile_id).maybeSingle();
+        if (!sp) return json({ error: "Staff member not found" }, 404);
+        if (sp.role === "owner") return json({ error: "Cannot reset owner password this way" }, 400);
+        const { data: biz } = await admin
+          .from("businesses").select("owner_id").eq("id", sp.business_id).maybeSingle();
+        if (biz?.owner_id !== userId && !(await isSuperadmin())) {
+          return json({ error: "Forbidden" }, 403);
+        }
+        const { error: resetErr } = await admin.auth.admin.updateUserById(sp.user_id, {
+          password: new_password,
+        });
+        if (resetErr) return json({ error: resetErr.message }, 400);
+        return json({ success: true });
+      }
+
       case "set_business_active": {
         if (!(await isSuperadmin())) return json({ error: "Forbidden" }, 403);
         const { business_id, active } = data;
