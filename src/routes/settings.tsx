@@ -282,10 +282,16 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 {s.role !== "owner" && (
-                  <button onClick={() => onRemove(s.id)}
-                    className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => onResetPassword(s)}
+                      className="text-[#7A7A72] hover:text-[#0F6E56] p-2 rounded-lg hover:bg-[#E8F5F1] transition-colors text-xs font-medium px-3">
+                      Reset password
+                    </button>
+                    <button onClick={() => onRemove(s.id)}
+                      className="text-red-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 )}
               </li>
             ))}
