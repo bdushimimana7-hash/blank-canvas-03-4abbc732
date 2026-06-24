@@ -94,6 +94,7 @@ export default function LiveQueue() {
   const [arrived, setArrived] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [hideServed, setHideServed] = useState(false);
+  const queueIdRef = useRef<string | null>(null);
 
   useEffect(() => { document.title = "Live queue — Possac"; }, []);
   useEffect(() => { if (!loading && !user) navigate("/login"); }, [loading, user, navigate]);
