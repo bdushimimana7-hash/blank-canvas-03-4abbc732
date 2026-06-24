@@ -2,21 +2,34 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
-import IndexPage from "./routes/index";
-import LoginPage from "./routes/login";
-import SignupPage from "./routes/signup";
-import SetupPage from "./routes/setup";
-import ResetPasswordPage from "./routes/reset-password";
-import Dashboard from "./routes/dashboard";
-import History from "./routes/history";
-import LiveQueue from "./routes/queue";
-import AddToQueue from "./routes/queue-add";
-import SettingsPage from "./routes/settings";
-import SuperAdmin from "./routes/superadmin";
-import JoinPage from "./routes/join";
-import StatusPage from "./routes/status";
-import TermsPage from "./routes/terms";
-import PrivacyPage from "./routes/privacy";
+import { lazy, Suspense } from "react";
+
+const IndexPage       = lazy(() => import("./routes/index"));
+const LoginPage       = lazy(() => import("./routes/login"));
+const SignupPage      = lazy(() => import("./routes/signup"));
+const SetupPage       = lazy(() => import("./routes/setup"));
+const ResetPasswordPage = lazy(() => import("./routes/reset-password"));
+const Dashboard       = lazy(() => import("./routes/dashboard"));
+const History         = lazy(() => import("./routes/history"));
+const LiveQueue       = lazy(() => import("./routes/queue"));
+const AddToQueue      = lazy(() => import("./routes/queue-add"));
+const SettingsPage    = lazy(() => import("./routes/settings"));
+const SuperAdmin      = lazy(() => import("./routes/superadmin"));
+const JoinPage        = lazy(() => import("./routes/join"));
+const StatusPage      = lazy(() => import("./routes/status"));
+const TermsPage       = lazy(() => import("./routes/terms"));
+const PrivacyPage     = lazy(() => import("./routes/privacy"));
+
+function PageLoader() {
+  return (
+    <div className="min-h-screen bg-[#F7F5F0] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 rounded-full border-2 border-[#0F6E56] border-t-transparent animate-spin" />
+        <span className="text-xs text-[#7A7A72]">Loading…</span>
+      </div>
+    </div>
+  );
+}
 
 const queryClient = new QueryClient();
 
