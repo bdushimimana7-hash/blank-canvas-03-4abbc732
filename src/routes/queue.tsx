@@ -233,10 +233,9 @@ const callEntry = async (e: Entry) => {
     // Find the current position-1 patient (who will be displaced)
     const currentFirst = entries.find((en) => en.status === "waiting" && en.position === 1 && en.id !== e.id);
     // Push all waiting entries that are ahead of or at position 1 down by 1
-    const toShift = entries.filter((en) => en.status === "waiting" && en.id !== e.id);
-    await Promise.all(toShift.map((w) =>
-      supabase.from("queue_entries").update({ position: w.position + 1 }).eq("id", w.id)
-    ));
+    if (queueIdRef.current) {
+      await supabase.rpc("bump_queue_positions", { p_queue_id: queueIdRef.current });
+    }
     // Set this entry to position 1 and mark urgent
     const { error } = await supabase.from("queue_entries")
       .update({ position: 1, is_urgent: true }).eq("id", e.id);
