@@ -59,7 +59,8 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ErrorBoundary>
+       <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<IndexPage />} />
             <Route path="/login" element={<LoginPage />} />
