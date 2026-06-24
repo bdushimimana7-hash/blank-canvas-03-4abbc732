@@ -120,6 +120,17 @@ export default function JoinPage() {
             <Button onClick={() => navigate(`/status/${success.entryId}`, { replace: true })} className="shine-hover mt-7 h-12 w-full rounded-xl">
               View my place in line
             </Button>
+            <button
+              type="button"
+              onClick={() => {
+                try { localStorage.removeItem(`possac:join:${businessId}`); } catch { /* ignore */ }
+                setSuccess(null);
+                setName("");
+                setPhone("");
+              }}
+              className="mt-3 w-full text-sm text-[#7A7A72] hover:text-[#0F6E56] transition-colors py-2">
+              + Add another person to the queue
+            </button>
           </div>
         </div>
       </div>
