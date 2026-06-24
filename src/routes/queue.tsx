@@ -109,6 +109,7 @@ export default function LiveQueue() {
     if (!q) {
       setEntries([]);
     } else {
+      queueIdRef.current = q.id;
       const { data } = await supabase
         .from("queue_entries").select("*").eq("queue_id", q.id).order("position");
       setEntries((data ?? []) as Entry[]);
