@@ -172,22 +172,31 @@ export default function LiveQueue() {
     if (!r.success) await supabase.from("queue_entries").update({ headsup_sent: false }).eq("id", t.id);
   };
 
-  const callEntry = async (e: Entry) => {
+const callEntry = async (e: Entry) => {
+    const calledAt = new Date().toISOString();
+    setEntries((prev) => prev.map((en) =>
+      en.id === e.id ? { ...en, status: "called", called_at: calledAt } : en
+    ));
+    toast.success(`Called ${e.customer_name}`);
     const { error } = await supabase.from("queue_entries")
-      .update({ status: "called", called_at: new Date().toISOString() }).eq("id", e.id);
-    if (error) { toast.error("Could not update"); return; }
-    const { data: biz } = await supabase.from("businesses").select("sms_template_call").eq("id", businessId!).single();
-    if (biz?.sms_template_call) {
-      const msg = fillTemplate(biz.sms_template_call, {
-        name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "",
-      });
-      toast.success(`Called ${e.customer_name}`);
-      sendSmsViaEdge(e.customer_phone, msg, {
-        businessId: businessId!, messageType: "call", customerName: e.customer_name,
-      }).then((r) => { if (!r.success) toast.warning("SMS failed"); }).catch(() => toast.warning("SMS failed"));
-    } else {
-      toast.success(`Called ${e.customer_name}`);
+      .update({ status: "called", called_at: calledAt }).eq("id", e.id);
+    if (error) {
+      setEntries((prev) => prev.map((en) =>
+        en.id === e.id ? { ...en, status: "waiting", called_at: null } : en
+      ));
+      toast.error("Could not update — please try again");
+      return;
     }
+    supabase.from("businesses").select("sms_template_call").eq("id", businessId!).single()
+      .then(({ data: biz }) => {
+        if (!biz?.sms_template_call) return;
+        const msg = fillTemplate(biz.sms_template_call, {
+          name: e.customer_name, position: e.position, wait: 0, business: businessName ?? "",
+        });
+        sendSmsViaEdge(e.customer_phone, msg, {
+          businessId: businessId!, messageType: "call", customerName: e.customer_name,
+        }).then((r) => { if (!r.success) toast.warning("SMS failed to send"); });
+      });
     triggerHeadsup();
   };
 
@@ -197,10 +206,20 @@ export default function LiveQueue() {
   };
 
   const setStatus = async (e: Entry, status: "served" | "no_show") => {
-    const patch = status === "served" ? { status, served_at: new Date().toISOString() } : { status };
-    const { error } = await supabase.from("queue_entries").update(patch).eq("id", e.id);
-    if (error) { toast.error("Could not update"); return; }
+    const servedAt = new Date().toISOString();
+    const patch = status === "served" ? { status, served_at: servedAt } : { status };
+    setEntries((prev) => prev.map((en) =>
+      en.id === e.id ? { ...en, ...patch } : en
+    ));
     toast.success(status === "served" ? "Marked served" : "Marked no-show");
+    const { error } = await supabase.from("queue_entries").update(patch).eq("id", e.id);
+    if (error) {
+      setEntries((prev) => prev.map((en) =>
+        en.id === e.id ? { ...en, status: e.status, served_at: e.served_at } : en
+      ));
+      toast.error("Could not update — please try again");
+      return;
+    }
     triggerHeadsup();
   };
 
