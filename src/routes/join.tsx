@@ -107,19 +107,27 @@ export default function JoinPage() {
             <CheckCircle2 className="mx-auto h-14 w-14 text-[#0F6E56]" />
             <h1 className="font-display mt-5 text-3xl font-bold text-[#0E0E0C]">You're in!</h1>
             <p className="mt-2 text-sm leading-6 text-[#7A7A72]">Go about your day — we'll text you when you're close.</p>
-            <div className="mt-7 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-[#E8F5F1] p-4">
-                <div className="text-xs text-[#7A7A72]">Position</div>
-                <div className="font-display text-4xl font-extrabold text-[#0F6E56]">#{success.position}</div>
-              </div>
-              <div className="rounded-2xl bg-[#F7F5F0] p-4">
-                <div className="text-xs text-[#7A7A72]">Estimated wait</div>
-                <div className="font-display text-4xl font-extrabold text-[#0E0E0C]">{success.waitMinutes}<span className="text-base">m</span></div>
-              </div>
+<div className="mt-7 rounded-2xl bg-[#E8F5F1] p-4">
+              <div className="text-xs text-[#7A7A72]">Position in queue</div>
+              <div className="font-display text-4xl font-extrabold text-[#0F6E56]">#{success.position}</div>
             </div>
-            <Button onClick={() => navigate(`/status/${success.entryId}`, { replace: true })} className="shine-hover mt-7 h-12 w-full rounded-xl">
-              View my place in line
-            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                try { localStorage.removeItem(`possac:join:${businessId}`); } catch { /* ignore */ }
+                setSuccess(null);
+                setName("");
+                setPhone("");
+              }}
+              className="mt-4 w-full h-12 rounded-xl bg-[#0F6E56] text-white text-sm font-semibold hover:bg-[#0a5a44] transition-colors">
+              + Add another person
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/status/${success.entryId}`, { replace: true })}
+              className="mt-2 w-full text-sm text-[#7A7A72] hover:text-[#0F6E56] transition-colors py-2">
+              View my place in line →
+            </button>
           </div>
         </div>
       </div>
