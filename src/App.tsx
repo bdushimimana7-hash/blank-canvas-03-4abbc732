@@ -78,7 +78,8 @@ export default function App() {
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="*" element={<NotFound />} />
-          </Routes>
+         </Routes>
+          </Suspense>
         </ErrorBoundary>
       </BrowserRouter>
       <Toaster richColors position="top-center" />
